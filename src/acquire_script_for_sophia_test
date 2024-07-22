@@ -2,8 +2,9 @@
 This script takes a bias, a dark and then an exposure
 Exposure time for the dark and science images is set to 120ms for testing purposes
 Number of exposures is set to 10
+Added ROIs
 */
-#include "stdio.h" 
+#include "stdio.h"
 #include "picam.h"
 #include <iostream>
 #include <sstream>
@@ -11,7 +12,13 @@ Number of exposures is set to 10
 #define NO_TIMEOUT  -1
 #define NUM_EXPOSURES  10
 #define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
+#define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 
+// Global ROI variables
+piint roi_x = 100;      // X position
+piint roi_y = 100;      // Y position
+piint roi_width = 500;  // Width
+piint roi_height = 400; // Height
 
 void PrintEnumString(PicamEnumeratedType type, piint value)
 {
@@ -65,13 +72,101 @@ void set_shutter(PicamHandle camera, piint mode)
             printf("open before trigger: ");
             break;
     }
-    error = 
-        Picam_SetParameterIntegerValue(
-            camera,
-            PicamParameter_ShutterTimingMode,
-            mode
-        );
+    error = Picam_SetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, mode);
     PrintError(error);
+}
+
+void get_single_roi(PicamHandle camera)
+{
+    PicamError err;
+    const PicamRois* region;
+
+    // Get current ROI values
+    err = Picam_GetParameterRoisValue(camera, PicamParameter_Rois, &region);
+    if (err == PicamError_None)
+    {
+        if (region->roi_count > 0)
+        {
+            const PicamRoi& roi = region->roi_array[0];
+            printf("Current ROI:\n");
+            printf("  x: %d\n", roi.x);
+            printf("  y: %d\n", roi.y);
+            printf("  width: %d\n", roi.width);
+            printf("  height: %d\n", roi.height);
+            printf("  x_binning: %d\n", roi.x_binning);
+            printf("  y_binning: %d\n", roi.y_binning);
+        }
+        else
+        {
+            printf("No ROIs are currently set.\n");
+        }
+
+        Picam_DestroyRois(region);
+    }
+    else
+    {
+        printf("Failed to get ROI values. ");
+        PrintError(err);
+    }
+}
+
+void set_single_roi(PicamHandle camera)
+{
+    PicamError err;
+    const PicamParameter* paramsFailed;
+    piint failCount;
+
+    // Initialize the ROI structure
+    PicamRois roi;
+    PicamRoi roiArray[1];
+    roi.roi_count = 1;
+    roi.roi_array = roiArray;
+
+    // Get the constraints
+    const PicamRoisConstraint* constraint;
+    err = Picam_GetParameterRoisConstraint(camera, PicamParameter_Rois, PicamConstraintCategory_Required, &constraint);
+    if (err == PicamError_None)
+    {
+        // piint totalWidth = (piint)constraint->width_constraint.maximum;
+        // piint totalHeight = (piint)constraint->height_constraint.maximum;
+        Picam_DestroyRoisConstraints(constraint);
+
+        // Set the ROI parameters
+        roi.roi_array[0].x = roi_x;
+        roi.roi_array[0].y = roi_y;
+        roi.roi_array[0].width = roi_width;
+        roi.roi_array[0].height = roi_height;
+        roi.roi_array[0].x_binning = 1; // Default binning, adjust as needed
+        roi.roi_array[0].y_binning = 1; // Default binning, adjust as needed
+
+        // Set the ROI on the camera
+        err = Picam_SetParameterRoisValue(camera, PicamParameter_Rois, &roi);
+        if (err == PicamError_None)
+        {
+            // Commit parameters
+            err = Picam_CommitParameters(camera, &paramsFailed, &failCount);
+            Picam_DestroyParameters(paramsFailed);
+            if (err == PicamError_None)
+            {
+                printf("ROI set and committed successfully.\n");
+            }
+            else
+            {
+                printf("Failed to commit ROI parameters. ");
+                PrintError(err);
+            }
+        }
+        else
+        {
+            printf("Failed to set ROI parameters. ");
+            PrintError(err);
+        }
+    }
+    else
+    {
+        printf("Failed to get ROI constraints. ");
+        PrintError(err);
+    }
 }
 
 void open_camera(PicamHandle* camera, PicamCameraID* id, piint* readoutstride)
@@ -95,6 +190,7 @@ void open_camera(PicamHandle* camera, PicamCameraID* id, piint* readoutstride)
     Picam_DestroyString(string);
 
     Picam_GetParameterIntegerValue(*camera, PicamParameter_ReadoutStride, readoutstride);
+    get_single_roi(*camera);
 }
 
 void close_camera(PicamHandle camera)
@@ -111,11 +207,10 @@ void expose(PicamHandle camera)
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
-
     SetExposureTime(camera, exposure_time);
     set_shutter(camera, 1); // Set shutter mode to normal
+    set_single_roi(camera); // Set ROI
 
-    // Commit parameters
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
     if (error != PicamError_None || !committed)
@@ -135,23 +230,20 @@ void expose(PicamHandle camera)
         }
     }
 
-
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
-
 }
 
 void dark(PicamHandle camera)
 {
     std::cout << "Take dark" << std::endl;
     set_shutter(camera, 2); // Set shutter mode to closed
+    set_single_roi(camera); // Set ROI
     PicamAvailableData data;
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
-
     SetExposureTime(camera, exposure_time);
 
-    // Commit parameters
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
     if (error != PicamError_None || !committed)
@@ -171,21 +263,19 @@ void dark(PicamHandle camera)
         }
     }
 
-
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
-
 }
 
 void bias(PicamHandle camera)
-{   
+{
     std::cout << "Take bias" << std::endl;
     set_shutter(camera, 3); // Set shutter mode to open
+    set_single_roi(camera); // Set ROI
     PicamAvailableData data;
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = 0; // Default exposure time
     SetExposureTime(camera, exposure_time);
 
-    // Commit parameters
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
     if (error != PicamError_None || !committed)
@@ -204,10 +294,8 @@ void bias(PicamHandle camera)
             Picam_DestroyParameters(failed_parameters);
         }
     }
-    
+
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
-
-
 }
 
 int main()
@@ -216,11 +304,15 @@ int main()
     PicamCameraID id;
     piint readoutstride;
     open_camera(&camera, &id, &readoutstride);
+
     for (int i = 0; i < NUM_EXPOSURES; ++i)
     {
-    bias(camera);
-    dark(camera);
-    expose(camera);
+        bias(camera);
+        dark(camera);
+        expose(camera);
     }
+    close_camera(camera);
+}
+
     close_camera(camera);
 }
