@@ -40,8 +40,17 @@ void PrintError(PicamError error)
     }
 }
 
+void get_exposure_time(PicamHandle camera)
+{
+    PicamError err;
+    piflt expTime;
+    err = Picam_GetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, &expTime);
+    PrintError(err);
+}
+
 void set_exposure_time(PicamHandle camera, piflt exposure_time)
 {
+    get_exposure_time(camera);
     PicamError error = Picam_SetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, exposure_time);
     if (error != PicamError_None)
     {
@@ -207,7 +216,7 @@ void expose(PicamHandle camera)
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
-    SetExposureTime(camera, exposure_time);
+    set_exposure_time(camera, exposure_time);
     set_shutter(camera, 1); // Set shutter mode to normal
     set_single_roi(camera); // Set ROI
 
