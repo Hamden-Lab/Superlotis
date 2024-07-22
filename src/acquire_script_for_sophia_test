@@ -1,0 +1,226 @@
+/*
+This script takes a bias, a dark and then an exposure
+Exposure time for the dark and science images is set to 120ms for testing purposes
+Number of exposures is set to 10
+*/
+#include "stdio.h" 
+#include "picam.h"
+#include <iostream>
+#include <sstream>
+
+#define NO_TIMEOUT  -1
+#define NUM_EXPOSURES  10
+#define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
+
+
+void PrintEnumString(PicamEnumeratedType type, piint value)
+{
+    const pichar* string;
+    Picam_GetEnumerationString(type, value, &string);
+    printf("%s", string);
+    Picam_DestroyString(string);
+}
+
+void PrintError(PicamError error)
+{
+    if (error == PicamError_None)
+        printf("Succeeded\n");
+    else
+    {
+        printf("Failed (");
+        PrintEnumString(PicamEnumeratedType_Error, error);
+        printf(")\n");
+    }
+}
+
+void SetExposureTime(PicamHandle camera, piflt exposure_time)
+{
+    PicamError error = Picam_SetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, exposure_time);
+    if (error != PicamError_None)
+    {
+        printf("Failed to set exposure time. ");
+        PrintError(error);
+    }
+    else
+    {
+        printf("Exposure time set to: %.2f ms\n", exposure_time);
+    }
+}
+
+void set_shutter(PicamHandle camera, piint mode)
+{
+    PicamError error;
+    printf("Set shutter mode to ");
+    switch (mode) {
+        case 1:
+            printf("normal: ");
+            break;
+        case 2:
+            printf("closed: ");
+            break;
+        case 3:
+            printf("open: ");
+            break;
+        case 4:
+            printf("open before trigger: ");
+            break;
+    }
+    error = 
+        Picam_SetParameterIntegerValue(
+            camera,
+            PicamParameter_ShutterTimingMode,
+            mode
+        );
+    PrintError(error);
+}
+
+void open_camera(PicamHandle* camera, PicamCameraID* id, piint* readoutstride)
+{
+    std::cout << "Open camera" << std::endl;
+    Picam_InitializeLibrary();
+
+    const pichar* string;
+    if (Picam_OpenFirstCamera(camera) == PicamError_None)
+        Picam_GetCameraID(*camera, id);
+    else
+    {
+        Picam_ConnectDemoCamera(PicamModel_Pixis100F, "0008675309", id);
+        Picam_OpenCamera(id, camera);
+        printf("No Camera Detected, Creating Demo Camera\n");
+    }
+
+    Picam_GetEnumerationString(PicamEnumeratedType_Model, id->model, &string);
+    printf("%s", string);
+    printf(" (SN:%s) [%s]\n", id->serial_number, id->sensor_name);
+    Picam_DestroyString(string);
+
+    Picam_GetParameterIntegerValue(*camera, PicamParameter_ReadoutStride, readoutstride);
+}
+
+void close_camera(PicamHandle camera)
+{
+    std::cout << "Close camera" << std::endl;
+    Picam_CloseCamera(camera);
+    Picam_UninitializeLibrary();
+}
+
+void expose(PicamHandle camera)
+{
+    std::cout << "Take exposure" << std::endl;
+    PicamAvailableData data;
+    PicamAcquisitionErrorsMask errors;
+    piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
+
+
+    SetExposureTime(camera, exposure_time);
+    set_shutter(camera, 1); // Set shutter mode to normal
+
+    // Commit parameters
+    pibln committed;
+    PicamError error = Picam_AreParametersCommitted(camera, &committed);
+    if (error != PicamError_None || !committed)
+    {
+        const PicamParameter* failed_parameters;
+        piint failed_parameter_count;
+        error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
+        if (error != PicamError_None)
+        {
+            printf("Failed to commit parameters. ");
+            PrintError(error);
+            return;
+        }
+        if (failed_parameter_count > 0)
+        {
+            Picam_DestroyParameters(failed_parameters);
+        }
+    }
+
+
+    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+
+}
+
+void dark(PicamHandle camera)
+{
+    std::cout << "Take dark" << std::endl;
+    set_shutter(camera, 2); // Set shutter mode to closed
+    PicamAvailableData data;
+    PicamAcquisitionErrorsMask errors;
+    piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
+
+
+    SetExposureTime(camera, exposure_time);
+
+    // Commit parameters
+    pibln committed;
+    PicamError error = Picam_AreParametersCommitted(camera, &committed);
+    if (error != PicamError_None || !committed)
+    {
+        const PicamParameter* failed_parameters;
+        piint failed_parameter_count;
+        error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
+        if (error != PicamError_None)
+        {
+            printf("Failed to commit parameters. ");
+            PrintError(error);
+            return;
+        }
+        if (failed_parameter_count > 0)
+        {
+            Picam_DestroyParameters(failed_parameters);
+        }
+    }
+
+
+    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+
+}
+
+void bias(PicamHandle camera)
+{   
+    std::cout << "Take bias" << std::endl;
+    set_shutter(camera, 3); // Set shutter mode to open
+    PicamAvailableData data;
+    PicamAcquisitionErrorsMask errors;
+    piflt exposure_time = 0; // Default exposure time
+    SetExposureTime(camera, exposure_time);
+
+    // Commit parameters
+    pibln committed;
+    PicamError error = Picam_AreParametersCommitted(camera, &committed);
+    if (error != PicamError_None || !committed)
+    {
+        const PicamParameter* failed_parameters;
+        piint failed_parameter_count;
+        error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
+        if (error != PicamError_None)
+        {
+            printf("Failed to commit parameters. ");
+            PrintError(error);
+            return;
+        }
+        if (failed_parameter_count > 0)
+        {
+            Picam_DestroyParameters(failed_parameters);
+        }
+    }
+    
+    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+
+
+}
+
+int main()
+{
+    PicamHandle camera;
+    PicamCameraID id;
+    piint readoutstride;
+    open_camera(&camera, &id, &readoutstride);
+    for (int i = 0; i < NUM_EXPOSURES; ++i)
+    {
+    bias(camera);
+    dark(camera);
+    expose(camera);
+    }
+    close_camera(camera);
+}
