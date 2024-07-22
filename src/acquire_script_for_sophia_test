@@ -120,6 +120,60 @@ void set_shutter(PicamHandle camera, piint mode)
 }
 
 
+void get_analog_gain(PicamHandle camera)
+{
+    std::cout << "Get analog gain: ";
+    PicamError error;
+    piint gainValue;
+    error = Picam_GetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, &gainValue);
+        //print current analog gain
+    if (error == PicamError_None)
+    {
+        std::cout << "Analog gain value: " << gainValue << std::endl;
+    }
+    else
+    {
+        std::cout << "Failed to get analog gain." << std::endl;
+    }
+
+}
+/*    PicamAdcAnalogGain_Low    = 1,
+    PicamAdcAnalogGain_Medium = 2,
+    PicamAdcAnalogGain_High   = 3*/
+
+void set_analog_gain(PicamHandle camera, piint val)
+{
+    PicamError error;
+    get_analog_gain(camera);
+    printf("Set ADC Analog Gain to ");
+    switch (val) {
+        case 1:
+            printf("low: ");
+            break;
+        case 2:
+            printf("medium: ");
+            break;
+        case 3:
+            printf("high: ");
+            break;
+    }
+    error = Picam_SetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, val);
+
+    // PrintError(error);
+
+    // std::cout << "Set analog gain: ";
+    // error = Picam_SetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, gainValue);
+    // PrintError(error);
+
+    // Store the gain value in params
+    if (error == PicamError_None)
+    {
+        // params.gainValue = gainValue; // Update params with the new gain value
+        std::cout << "Stored analog gain value: " << val << " in params." << std::endl;
+    }
+}
+
+
 void get_single_roi(PicamHandle camera)
 {
     PicamError err;
@@ -215,10 +269,11 @@ void set_single_roi(PicamHandle camera)
 
 void open_camera(PicamHandle* camera, PicamCameraID* id, piint* readoutstride)
 {
+    const pichar* string;
     std::cout << "Open camera" << std::endl;
     Picam_InitializeLibrary();
+    set_analog_gain(camera, 2);
 
-    const pichar* string;
     if (Picam_OpenFirstCamera(camera) == PicamError_None)
         Picam_GetCameraID(*camera, id);
     else
