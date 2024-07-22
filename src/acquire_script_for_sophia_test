@@ -10,7 +10,7 @@ Added ROIs
 #include <sstream>
 
 #define NO_TIMEOUT  -1
-#define NUM_EXPOSURES  10
+#define NUM_EXPOSURES  3
 #define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
 #define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 
@@ -40,7 +40,7 @@ void PrintError(PicamError error)
     }
 }
 
-void SetExposureTime(PicamHandle camera, piflt exposure_time)
+void set_exposure_time(PicamHandle camera, piflt exposure_time)
 {
     PicamError error = Picam_SetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, exposure_time);
     if (error != PicamError_None)
@@ -242,7 +242,7 @@ void dark(PicamHandle camera)
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
-    SetExposureTime(camera, exposure_time);
+    set_exposure_time(camera, exposure_time);
 
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
@@ -274,7 +274,7 @@ void bias(PicamHandle camera)
     PicamAvailableData data;
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = 0; // Default exposure time
-    SetExposureTime(camera, exposure_time);
+    set_exposure_time(camera, exposure_time);
 
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
@@ -311,8 +311,5 @@ int main()
         dark(camera);
         expose(camera);
     }
-    close_camera(camera);
-}
-
     close_camera(camera);
 }
