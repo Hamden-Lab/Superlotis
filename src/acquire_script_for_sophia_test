@@ -63,9 +63,43 @@ void set_exposure_time(PicamHandle camera, piflt exposure_time)
     }
 }
 
+void get_shutter(PicamHandle camera)
+{
+    PicamError error;
+    piint mode;
+    error = Picam_GetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, &mode);
+    // PrintError(error);
+        
+    if (error == PicamError_None)
+    {
+        if (mode == 1)
+        {
+            std::cout << "normal timing mode" << std::endl;
+        }
+        else if (mode == 2)
+        {
+            std::cout << "shutter always closed" << std::endl;
+        }
+        else if (mode == 3)
+        {
+            std::cout << "shutter always open" << std::endl;
+        }
+        else if (mode == 4)
+        {
+            std::cout << "shutter open before trigger" << std::endl;
+        }
+        else
+        {
+            std::cout << "Unknown shutter status: " << mode << std::endl;
+        }
+    }
+
+}
+
 void set_shutter(PicamHandle camera, piint mode)
 {
     PicamError error;
+    get_shutter(camera);
     printf("Set shutter mode to ");
     switch (mode) {
         case 1:
@@ -84,6 +118,7 @@ void set_shutter(PicamHandle camera, piint mode)
     error = Picam_SetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, mode);
     PrintError(error);
 }
+
 
 void get_single_roi(PicamHandle camera)
 {
