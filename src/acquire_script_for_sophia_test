@@ -14,11 +14,11 @@ Added ROIs
 #define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
 #define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 
-// Global ROI variables
-piint roi_x = 100;      // X position
-piint roi_y = 100;      // Y position
-piint roi_width = 500;  // Width
-piint roi_height = 400; // Height
+// // Global ROI variables
+// piint roi_x = 100;      // X position
+// piint roi_y = 100;      // Y position
+// piint roi_width = 500;  // Width
+// piint roi_height = 400; // Height
 
 void PrintEnumString(PicamEnumeratedType type, piint value)
 {
@@ -299,99 +299,86 @@ void set_analog_gain(PicamHandle camera, piint val)
     }
 }
 
-
-
-void get_single_roi(PicamHandle camera)
-{
+void get_rois(PicamHandle camera) {
+    std::cout << "Getting rois... " << std::endl;
     PicamError err;
-    const PicamRois* region;
+    // const PicamRois* region;
+    const PicamRoisConstraint* constraints;
 
-    // Get current ROI values
-    err = Picam_GetParameterRoisValue(camera, PicamParameter_Rois, &region);
-    if (err == PicamError_None)
-    {
-        if (region->roi_count > 0)
-        {
-            const PicamRoi& roi = region->roi_array[0];
-            printf("Current ROI:\n");
-            printf("  x: %d\n", roi.x);
-            printf("  y: %d\n", roi.y);
-            printf("  width: %d\n", roi.width);
-            printf("  height: %d\n", roi.height);
-            printf("  x_binning: %d\n", roi.x_binning);
-            printf("  y_binning: %d\n", roi.y_binning);
-        }
-        else
-        {
-            printf("No ROIs are currently set.\n");
-        }
+    piint width, height;
 
-        Picam_DestroyRois(region);
-    }
-    else
-    {
-        printf("Failed to get ROI values.\n");
-        PrintError(err);
+    // Get and print ROI constraints
+    err = Picam_GetParameterRoisConstraint(camera, 
+                                           PicamParameter_Rois, 
+                                           PicamConstraintCategory_Required, 
+                                           &constraints);
+    if (err == PicamError_None) {
+        // printf("ROI Constraints:\n");
+        width = (piint)constraints->width_constraint.maximum;
+        height = (piint)constraints->height_constraint.maximum;
+        std::cout << "Current width: " << width << std::endl;
+        std::cout << "Current height: " << height << std::endl;
+
+        // Clean up constraints after use
+        Picam_DestroyRoisConstraints(constraints);
+            } else {
+        std::cerr << "Error getting ROI constraints: " << err << std::endl;
     }
 }
-
-void set_single_roi(PicamHandle camera)
+void set_rois(PicamHandle camera, piint width, piint height)
 {
-    get_single_roi(camera);
     PicamError err;
-    const PicamParameter* paramsFailed;
-    piint failCount;
 
-    // Initialize the ROI structure
-    PicamRois roi;
-    PicamRoi roiArray[1];
-    roi.roi_count = 1;
-    roi.roi_array = roiArray;
-
-    // Get the constraints
-    const PicamRoisConstraint* constraint;
-    err = Picam_GetParameterRoisConstraint(camera, PicamParameter_Rois, PicamConstraintCategory_Required, &constraint);
-    if (err == PicamError_None)
-    {
-        // piint totalWidth = (piint)constraint->width_constraint.maximum;
-        // piint totalHeight = (piint)constraint->height_constraint.maximum;
-        Picam_DestroyRoisConstraints(constraint);
-
-        // Set the ROI parameters
-        roi.roi_array[0].x = roi_x;
-        roi.roi_array[0].y = roi_y;
-        roi.roi_array[0].width = roi_width;
-        roi.roi_array[0].height = roi_height;
-        roi.roi_array[0].x_binning = 1; // Default binning, adjust as needed
-        roi.roi_array[0].y_binning = 1; // Default binning, adjust as needed
-
-        // Set the ROI on the camera
-        err = Picam_SetParameterRoisValue(camera, PicamParameter_Rois, &roi);
+    get_rois(camera);
+    std::cerr << "Setting rois..."<< std::endl;
+    const PicamRois* region;
+        err = Picam_GetParameterRoisValue(camera, PicamParameter_Rois, &region);
         if (err == PicamError_None)
-        {
-            // Commit parameters
-            err = Picam_CommitParameters(camera, &paramsFailed, &failCount);
-            Picam_DestroyParameters(paramsFailed);
-            if (err == PicamError_None)
-            {
-                printf("ROI set and committed successfully.\n");
+		{
+			/* Modify the region */
+			if (region->roi_count == 1) 
+			{
+				/* The absolute size of the ROI */
+				region->roi_array[0].height		= height;
+				region->roi_array[0].width		= width;
+
+				/* The offset into the chip of the ROI (1/4th) */
+				region->roi_array[0].x			= width  / 2;
+				region->roi_array[0].y			= height / 2;
+
+				/* The vertical and horizontal binning */
+				region->roi_array[0].x_binning	= 1;
+				region->roi_array[0].y_binning	= 1;
+
+            /* Set the region of interest */
+			err = Picam_SetParameterRoisValue(	camera, 
+												PicamParameter_Rois, 
+												region);
+            const PicamRoi& roi = region->roi_array[0];
+
+            std::cout << "New width: " << roi.width << std::endl;
+            std::cout << "New height: " << roi.height << std::endl;
+            std::cout << "New x offset: " << roi.x << std::endl;
+            std::cout << "New y offset: " << roi.y << std::endl;
+            std::cout << "New x binning: " << roi.x_binning << std::endl;
+            std::cout << "New y binning: " << roi.y_binning << std::endl;
+
+			/* Error check */
+			if (err == PicamError_None)
+			{   
+                const PicamParameter* paramsFailed;
+                piint failCount;
+
+				/* Commit ROI to hardware */
+				err = Picam_CommitParameters(   camera, 
+												&paramsFailed, 
+												&failCount);
+                Picam_DestroyParameters(paramsFailed);
             }
-            else
-            {
-                printf("Failed to commit ROI parameters. ");
-                PrintError(err);
+        	Picam_DestroyRois(region);
             }
-        }
-        else
-        {
-            printf("Failed to set ROI parameters. ");
-            PrintError(err);
-        }
-    }
-    else
-    {
-        printf("Failed to get ROI constraints. ");
-        PrintError(err);
+        } else{
+            std::cerr << "Error getting ROI values: " << err << std::endl;
     }
 }
 
@@ -419,7 +406,9 @@ void open_camera()
     Picam_DestroyString(string);
 
     Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
-    set_single_roi(camera);
+    // get_roi(camera);
+    set_rois(camera, 1340, 100);
+    // set_roi(camera, 3000, 3000);
     set_temp(camera, -50.0);
     set_analog_gain(camera, 2);
     set_shutter(camera, 2);
@@ -443,7 +432,6 @@ void expose(PicamHandle camera)
 
     set_exposure_time(camera, exposure_time);
     set_shutter(camera, 1); // Set shutter mode to normal
-    set_single_roi(camera); // Set ROI
 
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
@@ -471,7 +459,7 @@ void dark(PicamHandle camera)
 {
     std::cout << "Take dark" << std::endl;
     set_shutter(camera, 2); // Set shutter mode to closed
-    set_single_roi(camera); // Set ROI
+    // set_roi(camera); // Set ROI
     PicamAvailableData data;
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
@@ -504,7 +492,7 @@ void bias(PicamHandle camera)
 {
     std::cout << "Take bias" << std::endl;
     set_shutter(camera, 3); // Set shutter mode to open
-    set_single_roi(camera); // Set ROI
+    // set_roi(camera); // Set ROI
     PicamAvailableData data;
     PicamAcquisitionErrorsMask errors;
     piflt exposure_time = 0; // Default exposure time
@@ -542,8 +530,6 @@ void bias(PicamHandle camera)
 int main()
 {
     // PicamHandle camera;
-    // PicamCameraID id;
-    // piint readoutstride;
     open_camera();
 
     // for (int i = 0; i < NUM_EXPOSURES; ++i)
