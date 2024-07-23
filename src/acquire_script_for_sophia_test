@@ -6,11 +6,15 @@ Added ROIs
 */
 #include "stdio.h"
 #include "picam.h"
+// #include "camera.h"
 #include <iostream>
 #include <sstream>
+#include <sys/stat.h>  // For stat and mkdir
+#include <cerrno>      // For errno
+#include <cstring>     // For strerror
 
 #define NO_TIMEOUT  -1
-#define NUM_EXPOSURES  3
+#define NUM_EXPOSURES  2
 #define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
 #define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 
@@ -19,6 +23,25 @@ Added ROIs
 // piint roi_y = 100;      // Y position
 // piint roi_width = 500;  // Width
 // piint roi_height = 400; // Height
+PicamHandle camera; // Global camera handle
+// PicamPtcArgs params;
+PicamCameraID id;
+piint readoutstride;
+const pichar* string;
+piflt expTime;
+piint mode;
+piflt temperature;
+piint gainValue;
+const PicamRoisConstraint* constraints;
+piint width;
+piint height;
+PicamAvailableData data;
+PicamAcquisitionErrorsMask errors;
+int num_image = NUM_EXPOSURES;  // Global counter for the number of images
+
+
+
+
 
 void PrintEnumString(PicamEnumeratedType type, piint value)
 {
@@ -40,11 +63,46 @@ void PrintError(PicamError error)
     }
 }
 
+void open_camera()
+{
+    Picam_InitializeLibrary();
+    std::cout << "Open camera" << std::endl;
+
+    if (Picam_OpenFirstCamera(&camera) == PicamError_None)
+        Picam_GetCameraID(&camera, &id);
+    else
+    {
+        Picam_ConnectDemoCamera(PicamModel_Pixis100F, "0008675309", &id);
+        Picam_OpenCamera(&id, &camera);
+        printf("No Camera Detected, Creating Demo Camera\n");
+    }
+
+    Picam_GetEnumerationString(PicamEnumeratedType_Model, id.model, &string);
+    printf("%s", string);
+    printf(" (SN:%s) [%s]\n", id.serial_number, id.sensor_name);
+    Picam_DestroyString(string);
+    Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
+
+    // set_rois(camera, 1340, 100);
+    // set_temp(camera, -50.0);
+    // set_analog_gain(camera, 2);
+    // set_shutter(camera, 2);
+    // set_exposure_time(camera, 10.0);
+
+}
+
+void close_camera()
+{
+    // PicamHandle camera;
+    std::cout << "Close camera" << std::endl;
+    Picam_CloseCamera(camera);
+    Picam_UninitializeLibrary();
+}
+
 void get_exposure_time(PicamHandle camera)
 {
     printf("Getting current exposure time...\n");
     PicamError err;
-    piflt expTime;
     err = Picam_GetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, &expTime);
     if (err != PicamError_None)
     {
@@ -77,7 +135,6 @@ void get_shutter(PicamHandle camera)
 {
     printf("Getting shutter mode...\n");
     PicamError error;
-    piint mode;
     error = Picam_GetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, &mode);
     // PrintError(error);
 
@@ -151,7 +208,6 @@ void get_temp(PicamHandle camera)
 {
     PicamError error;
     std::cout << "Getting sensor temperature..."<< std::endl;
-    piflt temperature;
     error = Picam_ReadParameterFloatingPointValue(
         camera,
         PicamParameter_SensorTemperatureReading,
@@ -201,38 +257,12 @@ void set_temp(PicamHandle camera, piflt temp)
 
 }
 
-// // Function to create a directory
-// void createDirectory(const std::string& dir) {
-//     struct stat info;
-
-//     if (stat(dir.c_str(), &info) != 0) {
-//         // Directory does not exist, try to create it
-//         if (mkdir(dir.c_str(), 0755) != 0) {
-//             std::cerr << "Error creating directory " << dir << ": " << strerror(errno) << std::endl;
-//         } else {
-//             std::cout << "Directory " << dir << " created." << std::endl;
-//         }
-//     } else if (!(info.st_mode & S_IFDIR)) {
-//         std::cerr << dir << " exists but is not a directory." << std::endl;
-//     }
-// }
-
-// void get_next_filename()
-// {
-
-// }
-
-// void get_last_filename()
-// {
-
-// }
 
 
 void get_analog_gain(PicamHandle camera)
 {
     std::cout << "Getting adc analog gain..." << std::endl;
     PicamError error;
-    piint gainValue;
     error = Picam_GetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, &gainValue);
 
     // Print current analog gain
@@ -303,9 +333,6 @@ void get_rois(PicamHandle camera) {
     std::cout << "Getting rois... " << std::endl;
     PicamError err;
     // const PicamRois* region;
-    const PicamRoisConstraint* constraints;
-
-    piint width, height;
 
     // Get and print ROI constraints
     err = Picam_GetParameterRoisConstraint(camera, 
@@ -382,52 +409,10 @@ void set_rois(PicamHandle camera, piint width, piint height)
     }
 }
 
-void open_camera()
-{
-    Picam_InitializeLibrary();
-    PicamHandle camera;
-    PicamCameraID id;
-    piint readoutstride;
-    const pichar* string;
-    std::cout << "Open camera" << std::endl;
-
-    if (Picam_OpenFirstCamera(&camera) == PicamError_None)
-        Picam_GetCameraID(&camera, &id);
-    else
-    {
-        Picam_ConnectDemoCamera(PicamModel_Pixis100F, "0008675309", &id);
-        Picam_OpenCamera(&id, &camera);
-        printf("No Camera Detected, Creating Demo Camera\n");
-    }
-
-    Picam_GetEnumerationString(PicamEnumeratedType_Model, id.model, &string);
-    printf("%s", string);
-    printf(" (SN:%s) [%s]\n", id.serial_number, id.sensor_name);
-    Picam_DestroyString(string);
-
-    Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
-    // get_roi(camera);
-    set_rois(camera, 1340, 100);
-    // set_roi(camera, 3000, 3000);
-    set_temp(camera, -50.0);
-    set_analog_gain(camera, 2);
-    set_shutter(camera, 2);
-    set_exposure_time(camera, 10.0);
-
-}
-
-void close_camera(PicamHandle camera)
-{
-    std::cout << "Close camera" << std::endl;
-    Picam_CloseCamera(camera);
-    Picam_UninitializeLibrary();
-}
 
 void expose(PicamHandle camera)
 {
     std::cout << "Take exposure" << std::endl;
-    PicamAvailableData data;
-    PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
     set_exposure_time(camera, exposure_time);
@@ -453,6 +438,17 @@ void expose(PicamHandle camera)
     }
 
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+    if (error == PicamError_None)
+        {
+            std::cout << "Successfully took exposure" << std::endl;
+            // image_counter++;
+            // std::cout << "Image " << image_counter << " taken." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to acquire image. ";
+            PrintError(error);
+        }
 }
 
 void dark(PicamHandle camera)
@@ -460,8 +456,6 @@ void dark(PicamHandle camera)
     std::cout << "Take dark" << std::endl;
     set_shutter(camera, 2); // Set shutter mode to closed
     // set_roi(camera); // Set ROI
-    PicamAvailableData data;
-    PicamAcquisitionErrorsMask errors;
     piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
 
     set_exposure_time(camera, exposure_time);
@@ -486,6 +480,15 @@ void dark(PicamHandle camera)
     }
 
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+    if (error == PicamError_None)
+        {
+            std::cout << "Successfully took dark" << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to acquire image. ";
+            PrintError(error);
+        }
 }
 
 void bias(PicamHandle camera)
@@ -493,8 +496,6 @@ void bias(PicamHandle camera)
     std::cout << "Take bias" << std::endl;
     set_shutter(camera, 3); // Set shutter mode to open
     // set_roi(camera); // Set ROI
-    PicamAvailableData data;
-    PicamAcquisitionErrorsMask errors;
     piflt exposure_time = 0; // Default exposure time
     set_exposure_time(camera, exposure_time);
 
@@ -518,25 +519,42 @@ void bias(PicamHandle camera)
     }
 
     Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+    if (error == PicamError_None)
+        {
+            std::cout << "Successfully took bias" << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to acquire image. ";
+            PrintError(error);
+        }
 }
 
-// int add_header()
-// {
 
+// // Function to create a directory
+// void createDirectory(const std::string& dir) {
+//     struct stat info;
 
-    
+//     if (stat(dir.c_str(), &info) != 0) {
+//         // Directory does not exist, try to create it
+//         if (mkdir(dir.c_str(), 0755) != 0) {
+//             std::cerr << "Error creating directory " << dir << ": " << strerror(errno) << std::endl;
+//         } else {
+//             std::cout << "Directory " << dir << " created." << std::endl;
+//         }
+//     } else if (!(info.st_mode & S_IFDIR)) {
+//         std::cerr << dir << " exists but is not a directory." << std::endl;
+//     }
 // }
 
 int main()
 {
-    // PicamHandle camera;
     open_camera();
-
-    // for (int i = 0; i < NUM_EXPOSURES; ++i)
-    // {
-    //     bias(camera);
-    //     dark(camera);
-    //     expose(camera);
-    // }
-    // close_camera(camera);
+    for (int i = 0; i < num_image; ++i)
+    {
+        bias(camera);
+        dark(camera);
+        expose(camera);
+    }
+    close_camera();
 }
