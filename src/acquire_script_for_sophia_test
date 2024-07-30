@@ -6,7 +6,7 @@ Added ROIs
 */
 #include "stdio.h"
 #include "picam.h"
-// #include "camera.h"
+#include "camera.h"
 #include <iostream>
 #include <sstream>
 #include <sys/stat.h>  // For stat and mkdir
@@ -14,8 +14,9 @@ Added ROIs
 #include <cstring>     // For strerror
 
 #define NO_TIMEOUT  -1
+#define TIME_BETWEEN_READOUTS 10 //ms
 #define NUM_EXPOSURES  2
-#define DEFAULT_EXPOSURE_TIME 120.0 // Default exposure time in milliseconds
+#define EXP_TIME 5.0 // Default exposure time in milliseconds
 #define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 
 // // Global ROI variables
@@ -23,24 +24,22 @@ Added ROIs
 // piint roi_y = 100;      // Y position
 // piint roi_width = 500;  // Width
 // piint roi_height = 400; // Height
-PicamHandle camera; // Global camera handle
+
 // PicamPtcArgs params;
-PicamCameraID id;
-piint readoutstride;
-const pichar* string;
-piflt expTime;
+PicamHandle camera;
 piint mode;
-piflt temperature;
+piflt temp;
 piint gainValue;
 const PicamRoisConstraint* constraints;
 piint width;
 piint height;
 PicamAvailableData data;
 PicamAcquisitionErrorsMask errors;
-int num_image = NUM_EXPOSURES;  // Global counter for the number of images
-
-
-
+int num_image;
+piflt exposure_time;
+PicamCameraID id;
+piint readoutstride;
+const pichar* string;
 
 
 void PrintEnumString(PicamEnumeratedType type, piint value)
@@ -63,47 +62,11 @@ void PrintError(PicamError error)
     }
 }
 
-void open_camera()
-{
-    Picam_InitializeLibrary();
-    std::cout << "Open camera" << std::endl;
-
-    if (Picam_OpenFirstCamera(&camera) == PicamError_None)
-        Picam_GetCameraID(&camera, &id);
-    else
-    {
-        Picam_ConnectDemoCamera(PicamModel_Pixis100F, "0008675309", &id);
-        Picam_OpenCamera(&id, &camera);
-        printf("No Camera Detected, Creating Demo Camera\n");
-    }
-
-    Picam_GetEnumerationString(PicamEnumeratedType_Model, id.model, &string);
-    printf("%s", string);
-    printf(" (SN:%s) [%s]\n", id.serial_number, id.sensor_name);
-    Picam_DestroyString(string);
-    Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
-
-    // set_rois(camera, 1340, 100);
-    // set_temp(camera, -50.0);
-    // set_analog_gain(camera, 2);
-    // set_shutter(camera, 2);
-    // set_exposure_time(camera, 10.0);
-
-}
-
-void close_camera()
-{
-    // PicamHandle camera;
-    std::cout << "Close camera" << std::endl;
-    Picam_CloseCamera(camera);
-    Picam_UninitializeLibrary();
-}
-
-void get_exposure_time(PicamHandle camera)
+void get_exposure_time(piflt *exposure_time)
 {
     printf("Getting current exposure time...\n");
     PicamError err;
-    err = Picam_GetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, &expTime);
+    err = Picam_GetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, exposure_time);
     if (err != PicamError_None)
     {
         printf("Failed to get exposure time.\n");
@@ -111,13 +74,16 @@ void get_exposure_time(PicamHandle camera)
     }
     else
     {
-        printf("Exposure time is: %.2f ms\n", expTime);
+        // std::cout << "Exposure time is: " << exposure_time << std::endl;
+        // std::cout << "Exposure time is: " << &exposure_time << std::endl;
+        std::cout << "Exposure time is: " << *exposure_time << " ms " << std::endl;
+        // printf("Exposure time is: %.2f ms\n", *(double*)exposure_time);
     }
 }
 
-void set_exposure_time(PicamHandle camera, piflt exposure_time)
+void set_exposure_time(piflt exposure_time)
 {
-    get_exposure_time(camera);
+    get_exposure_time(&exposure_time);
     printf("Setting new exposure time...\n");
     PicamError error = Picam_SetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, exposure_time);
     if (error != PicamError_None)
@@ -127,21 +93,22 @@ void set_exposure_time(PicamHandle camera, piflt exposure_time)
     }
     else
     {
-        printf("Exposure time set to: %.2f ms\n", exposure_time);
+        std::cout << "Exposure time set to: " << exposure_time << " ms " << std::endl;
+        // printf("Exposure time set to: %.2f ms\n", exposure_time);
     }
 }
 
-void get_shutter(PicamHandle camera)
+void get_shutter(piint *mode)
 {
     printf("Getting shutter mode...\n");
     PicamError error;
-    error = Picam_GetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, &mode);
+    error = Picam_GetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, mode);
     // PrintError(error);
 
     if (error == PicamError_None)
     {
         const char* modeDescription = "Unknown shutter status";
-        switch (mode) {
+        switch (*(int*)mode) {
             case 1:
                 modeDescription = "normal timing mode";
                 break;
@@ -166,10 +133,10 @@ void get_shutter(PicamHandle camera)
 }
 
 
-void set_shutter(PicamHandle camera, piint mode)
+void set_shutter(piint mode)
 {
     PicamError error;
-    get_shutter(camera);
+    get_shutter(&mode);
     printf("Setting shutter mode...\n");
     error = Picam_SetParameterIntegerValue(camera, PicamParameter_ShutterTimingMode, mode);
     if (error == PicamError_None){
@@ -204,25 +171,25 @@ void set_shutter(PicamHandle camera, piint mode)
 }
 
 
-void get_temp(PicamHandle camera)
+void get_temp(piflt *temp)
 {
     PicamError error;
     std::cout << "Getting sensor temperature..."<< std::endl;
     error = Picam_ReadParameterFloatingPointValue(
         camera,
         PicamParameter_SensorTemperatureReading,
-        &temperature);
+        temp);
     PrintError(error);
     if (error == PicamError_None)
     {
         std::cout << "Current temperature is "
-                  << temperature << " degrees C" << std::endl;
+                  << *temp << " degrees C" << std::endl;
     }
 }
 
-void set_temp(PicamHandle camera, piflt temp)
+void set_temp(piflt temp)
 {
-    get_temp(camera);
+    get_temp(&temp);
     PicamError error;
     // Check sensor temperature status
     std::cout << "Checking sensor temperature status..."<< std::endl;
@@ -259,17 +226,17 @@ void set_temp(PicamHandle camera, piflt temp)
 
 
 
-void get_analog_gain(PicamHandle camera)
+void get_analog_gain(piint *gainValue)
 {
     std::cout << "Getting adc analog gain..." << std::endl;
     PicamError error;
-    error = Picam_GetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, &gainValue);
+    error = Picam_GetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, gainValue);
 
     // Print current analog gain
     if (error == PicamError_None)
     {
         const char* gainDescription = "unknown";
-        switch (gainValue) {
+        switch (*(int*)gainValue) {
             case 1:
                 gainDescription = "low";
                 break;
@@ -292,14 +259,14 @@ void get_analog_gain(PicamHandle camera)
     PicamAdcAnalogGain_Medium = 2,
     PicamAdcAnalogGain_High   = 3*/
 
-void set_analog_gain(PicamHandle camera, piint val)
+void set_analog_gain(piint gainValue)
 {
     PicamError error;
-    get_analog_gain(camera);
+    get_analog_gain(&gainValue);
     printf("Setting adc analog gain...\n");
     
     const char* gainDescription = "unknown";
-    switch (val) {
+    switch (gainValue) {
         case 1:
             gainDescription = "low";
             break;
@@ -314,7 +281,7 @@ void set_analog_gain(PicamHandle camera, piint val)
 
     // printf("%s\n", gainDescription);
 
-    error = Picam_SetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, val);
+    error = Picam_SetParameterIntegerValue(camera, PicamParameter_AdcAnalogGain, gainValue);
 
 
     // std::cout << "Set analog gain: ";
@@ -329,7 +296,7 @@ void set_analog_gain(PicamHandle camera, piint val)
     }
 }
 
-void get_rois(PicamHandle camera) {
+void get_rois(piint *width, piint *height) {
     std::cout << "Getting rois... " << std::endl;
     PicamError err;
     // const PicamRois* region;
@@ -341,10 +308,10 @@ void get_rois(PicamHandle camera) {
                                            &constraints);
     if (err == PicamError_None) {
         // printf("ROI Constraints:\n");
-        width = (piint)constraints->width_constraint.maximum;
-        height = (piint)constraints->height_constraint.maximum;
-        std::cout << "Current width: " << width << std::endl;
-        std::cout << "Current height: " << height << std::endl;
+        *width = static_cast<piint>(constraints->width_constraint.maximum);
+        *height = static_cast<piint>(constraints->height_constraint.maximum);
+        std::cout << "Current width: " << *width << std::endl;
+        std::cout << "Current height: " << *height << std::endl;
 
         // Clean up constraints after use
         Picam_DestroyRoisConstraints(constraints);
@@ -352,11 +319,11 @@ void get_rois(PicamHandle camera) {
         std::cerr << "Error getting ROI constraints: " << err << std::endl;
     }
 }
-void set_rois(PicamHandle camera, piint width, piint height)
+void set_rois(piint width, piint height)
 {
     PicamError err;
 
-    get_rois(camera);
+    get_rois(&width, &height);
     std::cerr << "Setting rois..."<< std::endl;
     const PicamRois* region;
         err = Picam_GetParameterRoisValue(camera, PicamParameter_Rois, &region);
@@ -409,57 +376,45 @@ void set_rois(PicamHandle camera, piint width, piint height)
     }
 }
 
-
-void expose(PicamHandle camera)
+void open_camera()
 {
-    std::cout << "Take exposure" << std::endl;
-    piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
+    Picam_InitializeLibrary();
+    std::cout << "Open camera" << std::endl;
 
-    set_exposure_time(camera, exposure_time);
-    set_shutter(camera, 1); // Set shutter mode to normal
-
-    pibln committed;
-    PicamError error = Picam_AreParametersCommitted(camera, &committed);
-    if (error != PicamError_None || !committed)
+    if (Picam_OpenFirstCamera(&camera) == PicamError_None)
+        Picam_GetCameraID(&camera, &id);
+    else
     {
-        const PicamParameter* failed_parameters;
-        piint failed_parameter_count;
-        error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
-        if (error != PicamError_None)
-        {
-            printf("Failed to commit parameters. ");
-            PrintError(error);
-            return;
-        }
-        if (failed_parameter_count > 0)
-        {
-            Picam_DestroyParameters(failed_parameters);
-        }
+        Picam_ConnectDemoCamera(PicamModel_Pixis100F, "0008675309", &id);
+        Picam_OpenCamera(&id, &camera);
+        printf("No Camera Detected, Creating Demo Camera\n");
     }
 
-    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
-    if (error == PicamError_None)
-        {
-            std::cout << "Successfully took exposure" << std::endl;
-            // image_counter++;
-            // std::cout << "Image " << image_counter << " taken." << std::endl;
-        }
-        else
-        {
-            std::cerr << "Failed to acquire image. ";
-            PrintError(error);
-        }
+    Picam_GetEnumerationString(PicamEnumeratedType_Model, id.model, &string);
+    printf("%s", string);
+    printf(" (SN:%s) [%s]\n", id.serial_number, id.sensor_name);
+    Picam_DestroyString(string);
+    Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
+
+
+    set_rois(1340, 100);
+    set_temp(-50.0);
+    set_analog_gain(2);
+    set_shutter(2);
+    set_exposure_time(5);
+
 }
 
-void dark(PicamHandle camera)
+void close_camera()
 {
-    std::cout << "Take dark" << std::endl;
-    set_shutter(camera, 2); // Set shutter mode to closed
-    // set_roi(camera); // Set ROI
-    piflt exposure_time = DEFAULT_EXPOSURE_TIME; // Default exposure time
+    // PicamHandle camera;
+    std::cout << "Close camera" << std::endl;
+    Picam_CloseCamera(camera);
+    Picam_UninitializeLibrary();
+}
 
-    set_exposure_time(camera, exposure_time);
-
+void commit_params()
+{
     pibln committed;
     PicamError error = Picam_AreParametersCommitted(camera, &committed);
     if (error != PicamError_None || !committed)
@@ -469,7 +424,7 @@ void dark(PicamHandle camera)
         error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
         if (error != PicamError_None)
         {
-            printf("Failed to commit parameters. ");
+            std::cerr << "Failed to commit parameters. ";
             PrintError(error);
             return;
         }
@@ -478,8 +433,43 @@ void dark(PicamHandle camera)
             Picam_DestroyParameters(failed_parameters);
         }
     }
+}
+void expose()
+{
+    std::cout << "Take exposure" << std::endl;
 
-    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+    // Commit the parameters before acquisition
+    commit_params();
+
+    // The acquisition logic
+    set_shutter(1); // Set shutter mode to normal
+
+    PicamError error = Picam_Acquire(camera, 1, TIME_BETWEEN_READOUTS, &data, &errors);
+    if (error == PicamError_None)
+    {
+        std::cout << "Successfully took exposure" << std::endl;
+        // image_counter++;
+        // std::cout << "Image " << image_counter << " taken." << std::endl;
+    }
+    else
+    {
+        std::cerr << "Failed to acquire image. ";
+        PrintError(error);
+    }
+}
+
+
+void dark()
+{
+    std::cout << "Take dark" << std::endl;
+    set_shutter(2); // Set shutter mode to closed
+    piflt exposure_time = EXP_TIME;
+
+    set_exposure_time(exposure_time);
+
+    commit_params();
+
+    PicamError error = Picam_Acquire(camera, 1, TIME_BETWEEN_READOUTS, &data, &errors);
     if (error == PicamError_None)
         {
             std::cout << "Successfully took dark" << std::endl;
@@ -491,34 +481,18 @@ void dark(PicamHandle camera)
         }
 }
 
-void bias(PicamHandle camera)
+void bias()
 {
     std::cout << "Take bias" << std::endl;
-    set_shutter(camera, 3); // Set shutter mode to open
-    // set_roi(camera); // Set ROI
-    piflt exposure_time = 0; // Default exposure time
-    set_exposure_time(camera, exposure_time);
+    set_shutter(3); // Set shutter mode to open
+    piflt exposure_time = 0; 
+    // set_exposure_time(0);
 
-    pibln committed;
-    PicamError error = Picam_AreParametersCommitted(camera, &committed);
-    if (error != PicamError_None || !committed)
-    {
-        const PicamParameter* failed_parameters;
-        piint failed_parameter_count;
-        error = Picam_CommitParameters(camera, &failed_parameters, &failed_parameter_count);
-        if (error != PicamError_None)
-        {
-            printf("Failed to commit parameters. ");
-            PrintError(error);
-            return;
-        }
-        if (failed_parameter_count > 0)
-        {
-            Picam_DestroyParameters(failed_parameters);
-        }
-    }
+    set_exposure_time(exposure_time);
 
-    Picam_Acquire(camera, 1, NO_TIMEOUT, &data, &errors);
+    commit_params();
+
+    PicamError error = Picam_Acquire(camera, 1, TIME_BETWEEN_READOUTS, &data, &errors);
     if (error == PicamError_None)
         {
             std::cout << "Successfully took bias" << std::endl;
@@ -530,31 +504,14 @@ void bias(PicamHandle camera)
         }
 }
 
-
-// // Function to create a directory
-// void createDirectory(const std::string& dir) {
-//     struct stat info;
-
-//     if (stat(dir.c_str(), &info) != 0) {
-//         // Directory does not exist, try to create it
-//         if (mkdir(dir.c_str(), 0755) != 0) {
-//             std::cerr << "Error creating directory " << dir << ": " << strerror(errno) << std::endl;
-//         } else {
-//             std::cout << "Directory " << dir << " created." << std::endl;
-//         }
-//     } else if (!(info.st_mode & S_IFDIR)) {
-//         std::cerr << dir << " exists but is not a directory." << std::endl;
-//     }
-// }
-
 int main()
 {
     open_camera();
     for (int i = 0; i < num_image; ++i)
     {
-        bias(camera);
-        dark(camera);
-        expose(camera);
+        bias();
+        dark();
+        expose();
     }
     close_camera();
 }
