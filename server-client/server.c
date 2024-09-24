@@ -213,7 +213,7 @@ int listen_server(){
     
 
       if (strcmp(cmd,"expose")==0){
-	res = expose();
+	res = expose("exposure_file.raw");
 	if (res){
 	  resplen = sprintf(response,"Exposure error.");
 	} else {
@@ -222,7 +222,7 @@ int listen_server(){
       };
      
       if (strcmp(cmd,"dark")==0){
-	res = dark();
+	res = dark("dark_file.raw");
 	if (res){
 	  resplen = sprintf(response,"Exposure error.");
 	} else {
@@ -231,7 +231,7 @@ int listen_server(){
       };
 
       if (strcmp(cmd,"bias")==0){
-	res = bias();
+	res = bias("bias_file.raw");
 	if (res){
 	  resplen = sprintf(response,"Exposure error.");
 	} else {
@@ -256,5 +256,3 @@ int listen_server(){
   };
   return 1;
 };
-
-
