@@ -24,6 +24,11 @@ typedef struct PicamPtcArgs {
   piflt temp;
   piint gainValue;
   piflt exposure_time;
+  const char* filename;
+  // char image_path[STRING_LENGTH];
+  // char root_name[STRING_LENGTH];
+  // char last_fname[STRING_LENGTH];
+  // int imagenumber;
 //   PicamAvailableData data;
 //   int num_images;
 //   piint roi;
@@ -53,10 +58,11 @@ int set_analog_gain(piint gainValue);
 int open_camera();
 int close_camera();
 int commit_params();
+int image(const char *filename);
 
-int expose();
-int dark();
-int bias();
+int expose(const char *expose_filename);
+int dark(const char *dark_filename);
+int bias(const char *bias_filename);
 // int add_header(char *fname);
 // int get_last_filename(char *fname);
 // int get_next_filename(char *fname);
