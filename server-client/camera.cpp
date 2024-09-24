@@ -2,11 +2,11 @@
 This script takes a bias, a dark and then an exposure
 Exposure time for the dark and science images is set to 120ms for testing purposes
 Number of exposures is set to 10
-Added ROIs
 */
 #include "stdio.h"
 #include "picam.h"
 #include "camera.h"
+#include "fitsio.h"
 #include <iostream>
 #include <sstream>
 #include <sys/stat.h>  // For stat and mkdir
@@ -21,20 +21,32 @@ Added ROIs
 
 PicamPtcArgs params;
 PicamHandle camera;
-piint mode;
-piflt temp;
-piint gainValue;
+// piint mode;
+// piflt temp;
+// piint gainValue;
 const PicamRoisConstraint* constraints;
 // piint width;
 // piint height;
 PicamAvailableData data;
 PicamAcquisitionErrorsMask errors;
 // int num_image;
-piflt exposure_time;
 PicamCameraID id;
 piint readoutstride;
 const pichar* string;
+FILE* pFile;
 
+void PrintData( pibyte* buf, piint numframes, piint framelength )
+{
+    pi16u  *midpt = NULL;
+    pibyte *frameptr = NULL;
+
+    for( piint loop = 0; loop < numframes; loop++ )
+    {
+        frameptr = buf + ( framelength * loop );
+        midpt = (pi16u*)frameptr + ( ( ( framelength/sizeof(pi16u) )/ 2 ) );
+        printf( "%5d,%5d,%5d\t%d\n",(int) *(midpt-1),(int) *(midpt),(int) *(midpt+1),(int) loop+1 );
+    }
+}
 
 int PrintEnumString(PicamEnumeratedType type, piint value)
 {
@@ -80,8 +92,6 @@ int get_exposure_time(piflt *exposure_time)
     }
     else
     {
-        // std::cout << "Exposure time is: " << exposure_time << std::endl;
-        // std::cout << "Exposure time is: " << &exposure_time << std::endl;
         std::cout << "Exposure time is: " << *exposure_time << " ms " << std::endl;
         // printf("Exposure time is: %.2f ms\n", *(double*)exposure_time);
         return 0;
@@ -101,8 +111,7 @@ int set_exposure_time(piflt exposure_time)
     }
     else
     {
-        std::cout << "Exposure time set to: " << params.exposure_time << " ms " << std::endl;
-        // printf("Exposure time set to: %.2f ms\n", exposure_time);
+        std::cout << "Exposure time set to: " << exposure_time << " ms " << std::endl;
         return 0;
     }
 }
@@ -344,12 +353,15 @@ int open_camera()
     Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
 
 
-    // set_rois(1340, 100);
     set_temp(-50.0);
     set_analog_gain(2);
     set_shutter(2);
-    // set_exposure_time(5);
     return 0;
+
+    // sprintf(params.image_path,"./");
+    // sprintf(params.root_name,"image");
+    // sprintf(params.last_fname," ");
+//   params.imagenumber=0;
 }
 
 int close_camera()
@@ -387,23 +399,24 @@ int commit_params()
     return 0;  // Indicate success
 }
 
-int expose()
+
+int image(const char *filename)
 {
-    std::cout << "Take exposure" << std::endl;
-
-    // Commit the parameters before acquisition
-    commit_params();
-
-    // The acquisition logic
-    set_shutter(1); // Set shutter mode to normal
-
     PicamError error = Picam_Acquire(camera, 2, 6000, &data, &errors);
-    if (error == PicamError_None)
+   if (error == PicamError_None)
     {
-        std::cout << "Successfully took exposure" << std::endl;
-        return 0;
-        // image_counter++;
-        // std::cout << "Image " << image_counter << " taken." << std::endl;
+        std::cout << "Successfully took frame" << std::endl;
+        std::cout << "Filename is:" << filename << std::endl;
+
+        // std::cout << *static_cast<pibyte*>(data.initial_readout) << std::endl;
+        PrintData( (pibyte*)data.initial_readout, 2, readoutstride );
+		pFile = fopen(filename, "wb" );
+		if( pFile )
+		{
+			if( !fwrite( data.initial_readout, 1, (2*readoutstride), pFile ) )
+				printf( "Data file not saved\n" );
+			fclose( pFile );
+		}
     }
     else
     {
@@ -411,66 +424,53 @@ int expose()
         PrintError(error);
         return -1;
     }
+    return 0;
+}
+
+int expose(const char *expose_filename)
+{
+    std::cout << "Take exposure" << std::endl;
+    commit_params();
+
+    // The acquisition logic
+    set_shutter(1); 
+
+    // Commit the parameters before acquisition
+
+    image(expose_filename);
+    return 0;
+
 }
 
 
-int dark()
+int dark(const char *dark_filename)
 {
     std::cout << "Take dark" << std::endl;
+    commit_params();
+
     set_shutter(2); // Set shutter mode to closed
     piflt exposure_time = EXP_TIME;
 
     set_exposure_time(exposure_time);
 
-    commit_params();
+    image(dark_filename);
 
-    PicamError error = Picam_Acquire(camera, 2, 6000, &data, &errors);
-    if (error == PicamError_None)
-        {
-            std::cout << "Successfully took dark" << std::endl;
-            return 0;
-        }
-        else
-        {
-            std::cerr << "Failed to acquire image. ";
-            PrintError(error);
-            return -1;
-        }
+    return 0;
 }
 
-int bias()
+
+int bias(const char *bias_filename)
 {
     std::cout << "Take bias" << std::endl;
-    set_shutter(3); // Set shutter mode to open
-    piflt exposure_time = 0; 
-    // set_exposure_time(0);
-
-    set_exposure_time(exposure_time);
-
     commit_params();
+    set_shutter(3); // Set shutter mode to open
+    // piflt exposure_time = 0; 
 
-    PicamError error = Picam_Acquire(camera, 2, 6000, &data, &errors);
-    if (error == PicamError_None)
-        {
-            std::cout << "Successfully took bias" << std::endl;
-            return 0;
-        }
-        else
-        {
-            std::cerr << "Failed to acquire image. ";
-            PrintError(error);
-            return -1;
-        }
+    set_exposure_time(0);
+
+    image(bias_filename);
+
+    return 0;
 }
 
-// int main()
-// {
-//     open_camera();
-//     for (int i = 0; i < num_image; ++i)
-//     {
-//         bias();
-//         dark();
-//         expose();
-//     }
-//     close_camera();
-// }
+
