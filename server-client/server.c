@@ -111,7 +111,7 @@ int listen_server(){
     retval = 1;
     resplen=sprintf(response,"Invalid command.");
 
-    cmd = strtok(buffer," =");
+    cmd = strtok(buffer,"=");
     // if the command is null, we're in trouble
     //   printf("Command [%d] %s\n",strlen(cmd),cmd);
     
