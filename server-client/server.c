@@ -13,13 +13,15 @@
 
 const char helpstr[]=" \
 \nCommands:\
-\nanaloggain [piint]\
+\nanalog_gain [piint]\
 \ntemp [piflt]\
 \nshutter_mode [piint]\
 \nexptime [piflt]\
 \nexpose\
 \ndark\
 \nbias\
+\nstatus\
+\nburst\
 \ncommit_params\n";
 
 
@@ -155,7 +157,7 @@ int listen_server(){
         if (strcmp(cmd,"shutter_mode")==0){
 	if(argc == 1){
 	  fval = atof(arg);
-	    res = set_shutter(val);
+	    res = set_shutter(fval);
 	    if(res){
 	      resplen = sprintf(response,"Error setting shutter mode.");
 	    } else { 
@@ -166,7 +168,7 @@ int listen_server(){
 	    if (res){
 	      resplen = sprintf(response,"Error getting shutter mode.");
 	    } else {
-	      resplen = sprintf(response,"%0.2f",val);
+	      resplen = sprintf(response,"%0.2f",fval);
 	    };
 	}; //argument list
       };
@@ -179,7 +181,7 @@ int listen_server(){
 	    if(res){
 	      resplen = sprintf(response,"Error setting temp.");
 	    } else { 
-	      resplen = sprintf(response,"%0.2f",fval);
+	      resplen = sprintf(response,"%0.2f",val);
 	    };
 	  } else {
 	    res = get_temp(&fval);
@@ -195,7 +197,7 @@ int listen_server(){
         if (strcmp(cmd,"analog_gain")==0){
 	if(argc == 1){
 	  fval = atof(arg);
-	    res = set_analog_gain(val);
+	    res = set_analog_gain(fval);
 	    if(res){
 	      resplen = sprintf(response,"Error setting analog gain.");
 	    } else { 
@@ -210,9 +212,43 @@ int listen_server(){
 	    };
 	}; //argument list
       };
-    
 
-      if (strcmp(cmd,"expose")==0){
+//new
+  //       if (strcmp(cmd,"rois")==0){
+	// if(argc == 4){
+	//   fval = atof(arg);
+	//     res = set_rois(fval);
+	//     if(res){
+	//       resplen = sprintf(response,"Error setting roi values.");
+	//     } else { 
+	//       resplen = sprintf(response,"%0.2f",val);
+	//     };
+	//   } else {
+	//     res = get_analog_gain(&val);
+	//     if (res){
+	//       resplen = sprintf(response,"Error getting analog gain.");
+	//     } else {
+	//       resplen = sprintf(response,"%0.2f",val);
+	//     };
+	// }; //argument list
+  //     };
+
+      // burst
+    if (strcmp(cmd, "burst") == 0) {
+        if (argc == 1) {  
+            fval = atof(arg);  // Ensure fval is declared here
+            res = burst((int)fval);
+            if (res == 0) {
+                resplen = sprintf(response, "Burst exposure of %d images complete.", (int)fval);
+            } else {
+                resplen = sprintf(response, "Burst exposure failed.");
+            }
+        } else {
+            resplen = sprintf(response, "Usage: burst <number_of_exposures>");
+        }
+    }
+//end new
+     if (strcmp(cmd,"expose")==0){
 	res = expose("exposure_file.raw");
 	if (res){
 	  resplen = sprintf(response,"Exposure error.");
@@ -220,7 +256,7 @@ int listen_server(){
 	  resplen = sprintf(response,"Exposure complete.");
 	};
       };
-     
+
       if (strcmp(cmd,"dark")==0){
 	res = dark("dark_file.raw");
 	if (res){

@@ -54,6 +54,7 @@ int set_exposure_time(piflt exposure_time);
 int set_shutter(piint mode);
 int set_temp(piflt temp);
 int set_analog_gain(piint gainValue);
+int status(piflt exposure_time, piint gainValue, piint mode, piflt temp);
 
 int open_camera();
 int close_camera();
@@ -63,6 +64,7 @@ int image(const char *filename);
 int expose(const char *expose_filename);
 int dark(const char *dark_filename);
 int bias(const char *bias_filename);
+int burst(int i); //new 
 // int add_header(char *fname);
 // int get_last_filename(char *fname);
 // int get_next_filename(char *fname);

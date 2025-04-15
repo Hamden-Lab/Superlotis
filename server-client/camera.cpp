@@ -1,7 +1,5 @@
 /*
-This script takes a bias, a dark and then an exposure
-Exposure time for the dark and science images is set to 120ms for testing purposes
-Number of exposures is set to 10
+This script defines camera commands 
 */
 #include "stdio.h"
 #include "picam.h"
@@ -12,6 +10,7 @@ Number of exposures is set to 10
 #include <sys/stat.h>  // For stat and mkdir
 #include <cerrno>      // For errno
 #include <cstring>     // For strerror
+
 
 #define NO_TIMEOUT  -1
 #define TIME_BETWEEN_READOUTS 10 //ms
@@ -24,7 +23,7 @@ PicamHandle camera;
 // piint mode;
 // piflt temp;
 // piint gainValue;
-const PicamRoisConstraint* constraints;
+// const PicamRoisConstraint* constraints;
 // piint width;
 // piint height;
 PicamAvailableData data;
@@ -353,7 +352,7 @@ int open_camera()
     Picam_GetParameterIntegerValue(camera, PicamParameter_ReadoutStride, &readoutstride);
 
 
-    set_temp(-50.0);
+    set_temp(-10.0);
     set_analog_gain(2);
     set_shutter(2);
     return 0;
@@ -442,6 +441,21 @@ int expose(const char *expose_filename)
 
 }
 
+//new:
+int burst(int i) {
+    for (int j = 1; j <= i; ++j) {
+        // Use stringstream to construct the filename
+        std::stringstream ss;
+        ss << "exposure_file_" << j << ".raw";
+        std::string filename = ss.str(); // Get the string from stringstream
+        
+        // Call the expose function with the constructed filename
+        expose(filename.c_str());
+    }
+    return 0;
+}
+//end new
+
 
 int dark(const char *dark_filename)
 {
@@ -473,4 +487,13 @@ int bias(const char *bias_filename)
     return 0;
 }
 
-
+// int main(){
+//     open_camera();
+//     burst(5);
+//     // for (int i; i<2;++i)
+//     // {
+//     //     const char *file = "exp_file";
+//     //     expose(file);
+//     //     }
+//     close_camera();
+// }
