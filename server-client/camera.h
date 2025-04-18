@@ -1,18 +1,8 @@
-/*
-  This header file contains the structure definitions and function
-  declarations needed to operate the Sophia camera with the Picam software.
-  Created July 2024.
-*/
-
 #ifndef CAMERA_H_
 #define CAMERA_H_
 #include "picam.h"
-#include <string>   // For std::string
+#include <string.h>   // For std::string
 
-
-// #define SIMULATE 0
-
-// legact from NUVU software stuff
 #define COMMAND_LINE_BUILD 1
 
 #define STRING_LENGTH 255

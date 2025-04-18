@@ -27,6 +27,8 @@ int main(int argc, char *argv[])
 
   if (argc == 2) {
     ROS = atoi(argv[1]);
+    // ROS = atoi(argv[0]);
+
   } else { 
     ROS=-1;
   };

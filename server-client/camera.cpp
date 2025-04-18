@@ -99,7 +99,7 @@ int get_exposure_time(piflt *exposure_time)
 
 int set_exposure_time(piflt exposure_time)
 {
-    get_exposure_time(&exposure_time);
+    // get_exposure_time(&exposure_time);
     printf("Setting new exposure time...\n");
     PicamError error = Picam_SetParameterFloatingPointValue(camera, PicamParameter_ExposureTime, params.exposure_time);
     if (error != PicamError_None)
