@@ -101,6 +101,7 @@ int listen_server(){
       error("ERROR reading from socket");
       return 0;
     };
+
     printf("Received command: %s.\n",buffer);
     printf("%d\n",strcmp(buffer,"exit"));
 
@@ -110,22 +111,61 @@ int listen_server(){
     argc = 0;
     retval = 1;
     resplen=sprintf(response,"Invalid command.");
+    buffer[strcspn(buffer, "\n")] = '\0';  
 
-    cmd = strtok(buffer,"=");
-    // if the command is null, we're in trouble
-    //   printf("Command [%d] %s\n",strlen(cmd),cmd);
     
-    if(cmd != NULL){
-      // see if there is an argument
-      arg = strtok(NULL," ");
-      printf("Command  %s\n",cmd);
-      if(arg != NULL) printf("Argument %s\n",arg);
-      
-      if(arg!=NULL) argc=1;
-      // exit command received
+    if(strchr(buffer, '=')){
+      cmd = strtok(buffer,"=");
+      printf("Command 1 %s\n",cmd);
+      if (cmd != NULL){
+        arg = strtok(NULL,"=");
+        if(arg != NULL){
+          argc = 1;
+          printf("Argument 1 %s\n",arg);
+        } else {
+          argc = 0;
+        };
+      };
+    } else {
+      cmd = buffer;
+      printf("Command 2 %s\n",cmd);
+      argc = 0;
+    };
+
+    if (strcmp(cmd, "exptime") == 0) {
+      if(argc == 1){
+        fval = atof(arg);
+        printf("[DEBUG] Parsed fval from arg: %f\n", fval);
+
+        res = set_exposure_time(fval);
+        printf("[DEBUG] Result of set_exposure_time: %d\n", res);
+
+        if (res) {
+            resplen = sprintf(response, "Error setting exposure time.");
+        } else {
+            resplen = sprintf(response, "%0.2f", fval);
+        };
+
+        printf("[DEBUG] Response: %s\n", response);
+        printf("[DEBUG] resplen: %d\n", resplen);
+      };
+      if(argc == 0){
+        printf("Number of arguments: %d\n", argc);
+        res = get_exposure_time(&fval);
+        printf("[DEBUG] Result of get_exposure_time: %d\n", res);
+        if (res) {
+            resplen = sprintf(response, "Error getting exposure time.");
+        } else {
+            resplen = sprintf(response, "%0.2f", fval);
+        };
+      };
+
+      };
+
+            // exit command received
       if( strcmp(cmd,"exit")==0){
-	retval = 0;
-	resplen = sprintf(response,"Exit requested.");
+        retval = 0;
+        resplen = sprintf(response,"Exit requested.");
       };
 
       // help
@@ -133,26 +173,6 @@ int listen_server(){
 	resplen = sprintf(response,"%s",helpstr);
       };
 
-      // set/get exptime
-      if (strcmp(cmd,"exptime")==0){
-	if(argc == 1){
-	  fval = atof(arg);
-	    res = set_exposure_time(fval);
-	    if(res){
-	      resplen = sprintf(response,"Error setting exposure time.");
-	    } else { 
-	      resplen = sprintf(response,"%0.2f",fval);
-	    };
-	  } else {
-	    res = get_exposure_time(&fval);
-	    if (res){
-	      resplen = sprintf(response,"Error getting exposure time.");
-	    } else {
-	      resplen = sprintf(response,"%0.2f",fval);
-	    };
-	}; //argument list
-      };
-    
       // set/get shutter mode
         if (strcmp(cmd,"shutter_mode")==0){
 	if(argc == 1){
@@ -242,11 +262,11 @@ int listen_server(){
                 resplen = sprintf(response, "Burst exposure of %d images complete.", (int)fval);
             } else {
                 resplen = sprintf(response, "Burst exposure failed.");
-            }
+            };
         } else {
             resplen = sprintf(response, "Usage: burst <number_of_exposures>");
-        }
-    }
+        };
+    };
 //end new
      if (strcmp(cmd,"expose")==0){
 	res = expose("exposure_file.raw");
@@ -276,10 +296,10 @@ int listen_server(){
       };
 
       
-    } else {
-      // if the command is null, return the defaults
-    };
-    
+    // } else {
+    //   // if the command is null, return the defaults
+    // };
+
     
     // *********************************************
     
