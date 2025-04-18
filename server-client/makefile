@@ -14,17 +14,6 @@ LIBS      = -lncurses \
 /usr/local/lib/libpicam.so     # <-- Explicitly linking libpicam.so
 
 
-####### Compile
-
-#$(FILE): $(FILE).o
-#	$(CXX) $(CFLAGS) -o $(FILE) $(FILE).o $(LIBS)
-#
-#%.o: %.c
-#	$(CXX) -c $(FILE).c
-#
-#%.o: %.cpp
-#	$(CXX) -c $(CFLAGS) $(FILE).cpp
-
 
 all: 
 	@clear
@@ -40,9 +29,7 @@ all:
 	@echo "Compiling server... " 
 	@g++ obj/server.o obj/camera.o $(CFLAGS) $(LIBS) -o bin/camserver_cit camserver.c
 	@echo "Done."
-	@echo "Compiling client... "
-	@gcc -o bin/cam_cit camclient.c 
-	@echo "Done."
+
 
 clean:
 	@echo "Cleaning... "
