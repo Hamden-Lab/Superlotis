@@ -1,11 +1,22 @@
 #ifndef CAMERA_H_
 #define CAMERA_H_
 #include "picam.h"
-#include <string.h>   // For std::string
+#include <string.h>  
+#include "fitsio.h"
+#include <cstdio>
+#include <iostream>
 
 #define COMMAND_LINE_BUILD 1
-
 #define STRING_LENGTH 255
+
+#define NO_TIMEOUT             -1
+#define TIME_BETWEEN_READOUTS  10  
+#define NUM_EXPOSURES          2
+#define EXP_TIME               5.0  
+#define ACQUIRE_TIMEOUT        15000 
+#define OK                     0
+#define ERR                    1
+
 
 // structure for camera parameters
 typedef struct PicamPtcArgs {
@@ -15,23 +26,19 @@ typedef struct PicamPtcArgs {
   piint gainValue;
   piflt exposure_time;
   const char* filename;
-  // char image_path[STRING_LENGTH];
-  // char root_name[STRING_LENGTH];
-  // char last_fname[STRING_LENGTH];
-  // int imagenumber;
-//   PicamAvailableData data;
-//   int num_images;
-//   piint roi;
-//   piint readoutstride;
-//   PicamCameraID id;
-//   PicamAcquisitionErrorsMask errors;
-
-  // piflt expTime;
-  // Global counter for the number of images
+  PicamAvailableData data;
+  PicamAcquisitionErrorsMask errors;
+  PicamCameraID id;
+  piint readoutstride;
+  const pichar* string;
+  FILE* pFile;
+  PicamHandle camera;
 
 }PicamPtcArgs;
 
 //print error and get status functions
+void PrintData( pibyte* buf, piint numframes, piint framelength);
+
 int PrintEnumString(PicamEnumeratedType type, piint value);
 int PrintError(PicamError error); 
 
