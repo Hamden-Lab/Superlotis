@@ -11,6 +11,9 @@
 #include "server.h"
 #include "socketid.h"
 
+#define OK 0
+#define ERR -1
+
 const char helpstr[]=" \
 \nCommands:\
 \nanalog_gain [piint]\
@@ -45,7 +48,7 @@ int open_server(){
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     error("ERROR opening socket");
-    return -1;
+    return ERR;
   };
 
   // set options and clear values
@@ -60,7 +63,7 @@ int open_server(){
   if (bind(sockfd, (struct sockaddr *) &serv_addr,
 	   sizeof(serv_addr)) < 0){
     error("ERROR on binding");
-    return -1;
+    return ERR;
   };
   
   // set up listening.
@@ -69,7 +72,7 @@ int open_server(){
 
   port_open = 1;
   printf("Server opened.\n");
-  return 0;
+  return OK;
 };
 
 int close_server(){
@@ -78,7 +81,7 @@ int close_server(){
     printf("Server closed\n");
     port_open = 0;
   }; // port_open
-  return 0;
+  return OK;
 };
 
 int listen_server(){
@@ -86,6 +89,7 @@ int listen_server(){
   char *arg;
   int argc;
   int res,val;
+  char *res_char;
   piflt fval;
   if(port_open){
     newsockfd = accept(sockfd, 
@@ -93,13 +97,13 @@ int listen_server(){
 		       &clilen);
     if (newsockfd < 0) {
       error("ERROR on accept");
-      return 0;
+      return OK;
     };
     bzero(buffer,256);
     n = read(newsockfd,buffer,255);
     if (n < 0){
       error("ERROR reading from socket");
-      return 0;
+      return OK;
     };
 
     printf("Received command: %s.\n",buffer);
@@ -134,20 +138,27 @@ int listen_server(){
 
     if (strcmp(cmd, "exptime") == 0) {
       if(argc == 1){
-        fval = atof(arg);
-        printf("[DEBUG] Parsed fval from arg: %f\n", fval);
+        printf(arg);
+        int value = atoi(arg);
+        if (value >= 0 && value <= 240000){
+          fval = atof(arg); //convert to string
 
-        res = set_exposure_time(fval);
-        printf("[DEBUG] Result of set_exposure_time: %d\n", res);
+          printf("[DEBUG] Parsed fval from arg: %f\n", fval);
 
-        if (res) {
-            resplen = sprintf(response, "Error setting exposure time.");
-        } else {
-            resplen = sprintf(response, "%0.2f", fval);
-        };
+          res = set_exposure_time(fval);
+          printf("[DEBUG] Result of set_exposure_time: %d\n", res);
 
-        printf("[DEBUG] Response: %s\n", response);
-        printf("[DEBUG] resplen: %d\n", resplen);
+          if (res) {
+              resplen = sprintf(response, "Error setting exposure time.");
+          } else {
+              resplen = sprintf(response, "%0.2f", fval);
+          }
+          printf("[DEBUG] Response: %s\n", response);
+          printf("[DEBUG] resplen: %d\n", resplen);
+        // } else {
+        //     printf("err");
+        //     return ERR;
+        }
       };
       if(argc == 0){
         printf("Number of arguments: %d\n", argc);
@@ -161,6 +172,15 @@ int listen_server(){
       };
 
       };
+  
+
+        //TODO: parse input
+        //if arg is not an int -> return ERR
+        //if fval > 240,000 ms (4 min) -> return ERR
+        //if fval < 0 ms -> return ERR
+        //for expose & dark: if fval < 30000ms (30sec) -> return ERR 
+        //for bias: if favl != 0 -> return ERR
+        //add DEBUG preprocesser directives
 
             // exit command received
       if( strcmp(cmd,"exit")==0){
@@ -197,6 +217,9 @@ int listen_server(){
         if (strcmp(cmd,"temp")==0){
 	if(argc == 1){
 	  fval = atof(arg);
+    //if fval is not a float -> ERR
+    //if fval > 70 -> ERR
+    //if fval < -90 -> ERR
 	    res = set_temp(fval);
 	    if(res){
 	      resplen = sprintf(response,"Error setting temp.");
@@ -308,7 +331,7 @@ int listen_server(){
     close(newsockfd);
     return retval;
   } else { 
-    return 0;
+    return OK;
   };
   return 1;
 };
