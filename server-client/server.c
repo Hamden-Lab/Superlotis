@@ -144,9 +144,10 @@ int listen_server(){
         printf(arg);
 
         char ints[] = "0123456789";
+        const char *nonDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:'\",.<>?/\\ \t\n"; 
         int value = atoi(arg);
 
-        if (value >= 0 && value <= 240000 && strpbrk(arg, ints)!=NULL){
+        if (value >= 0 && value <= 240000 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
           fval = atof(arg); //convert to string
 
           printf("[DEBUG] Parsed fval from arg: %f\n", fval);
