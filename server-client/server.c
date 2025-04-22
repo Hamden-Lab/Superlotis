@@ -5,6 +5,8 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <ctype.h>  // Include ctype.h for isdigit()
+
 // #include "picam.h"
 
 #include "camera.h"
@@ -84,6 +86,8 @@ int close_server(){
   return OK;
 };
 
+
+
 int listen_server(){
   char *cmd;
   char *arg;
@@ -117,7 +121,6 @@ int listen_server(){
     resplen=sprintf(response,"Invalid command.");
     buffer[strcspn(buffer, "\n")] = '\0';  
 
-    
     if(strchr(buffer, '=')){
       cmd = strtok(buffer,"=");
       printf("Command 1 %s\n",cmd);
@@ -139,8 +142,11 @@ int listen_server(){
     if (strcmp(cmd, "exptime") == 0) {
       if(argc == 1){
         printf(arg);
+
+        char ints[] = "0123456789";
         int value = atoi(arg);
-        if (value >= 0 && value <= 240000){
+
+        if (value >= 0 && value <= 240000 && strpbrk(arg, ints)!=NULL){
           fval = atof(arg); //convert to string
 
           printf("[DEBUG] Parsed fval from arg: %f\n", fval);
