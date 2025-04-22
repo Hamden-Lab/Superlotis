@@ -18,7 +18,7 @@
 
 const char helpstr[]=" \
 \nCommands:\
-\nanalog_gain [piint]\
+\ngain [piint]\
 \ntemp [piflt]\
 \nshutter_mode [piint]\
 \nexptime [piflt]\
@@ -180,12 +180,6 @@ int listen_server(){
 
       };
   
-
-        //TODO: parse input
-        //if arg is not an int -> return ERR
-        //if fval > 240,000 ms (4 min) -> return ERR
-        //if fval < 0 ms -> return ERR
-        //for expose & dark: if fval < 30000ms (30sec) -> return ERR 
         //for bias: if favl != 0 -> return ERR
         //add DEBUG preprocesser directives
 
@@ -220,48 +214,143 @@ int listen_server(){
 	}; //argument list
       };
 
-      // set/get temp
-        if (strcmp(cmd,"temp")==0){
-	if(argc == 1){
-	  fval = atof(arg);
-    //if fval is not a float -> ERR
-    //if fval > 70 -> ERR
-    //if fval < -90 -> ERR
-	    res = set_temp(fval);
-	    if(res){
-	      resplen = sprintf(response,"Error setting temp.");
-	    } else { 
-	      resplen = sprintf(response,"%0.2f",val);
-	    };
-	  } else {
-	    res = get_temp(&fval);
-	    if (res){
-	      resplen = sprintf(response,"Error getting temp.");
-	    } else {
-	      resplen = sprintf(response,"%0.2f",fval);
-	    };
-	}; //argument list
+    if (strcmp(cmd, "temp") == 0) {
+      if(argc == 1){
+        printf(arg);
+
+        char ints[] = "0123456789";
+        const char *nonDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_=+[]{}|;:'\",.<>?/\\ \t\n"; 
+        int value = atoi(arg);
+
+        if (value >= -70 && value <= 90 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
+          fval = atof(arg); //convert to string
+
+          printf("[DEBUG] Parsed fval from arg: %f\n", fval);
+
+          res = set_temp(fval);
+          printf("[DEBUG] Result of set_temp: %d\n", res);
+
+          if (res) {
+              resplen = sprintf(response, "Error setting exposure time.");
+          } else {
+              resplen = sprintf(response, "%0.2f", fval);
+          }
+          printf("[DEBUG] Response: %s\n", response);
+          printf("[DEBUG] resplen: %d\n", resplen);
+        // } else {
+        //     printf("err");
+        //     return ERR;
+        }
       };
+      if(argc == 0){
+        printf("Number of arguments: %d\n", argc);
+        res = get_temp(&fval);
+        printf("[DEBUG] Result of get_temp: %d\n", res);
+        if (res) {
+            resplen = sprintf(response, "Error getting temp.");
+        } else {
+            resplen = sprintf(response, "%0.2f", fval);
+        };
+      };
+
+      };
+  
+      // // set/get temp
+      //   if (strcmp(cmd,"temp")==0){
+      //     if(argc == 1){
+      //       printf(arg);
+      //       char ints[] = "0123456789";
+      //       const char *nonDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:'\",.<>?/\\ \t\n"; 
+      //       // int value = atoi(arg);
+      //       if (arg >= -70 && arg <= 90 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
+      //         fval = atof(arg);
+      //         printf("[DEBUG] Parsed fval from arg: %f\n", fval);
+
+      //         res = set_temp(fval);
+      //         printf("[DEBUG] Result of set_temp: %d\n", res);
+
+      //         if(res){
+      //           resplen = sprintf(response,"Error setting temp.");
+      //         } else { 
+      //           resplen = sprintf(response,"%0.2f",val);
+      //         };
+      //       } else {
+      //         res = get_temp(&fval);
+      //         if (res){
+      //           resplen = sprintf(response,"Error getting temp.");
+      //         } else {
+      //           resplen = sprintf(response,"%0.2f",fval);
+      //         };
+      //     }; //argument list
+      // };
+
+    // //set/get analog gain
+    // if (strcmp(cmd, "gain") == 0) {
+    //   if(argc == 1){
+    //     printf(arg);
+
+    //     char ints[] = "0123";
+    //     const char *nonDigits = "456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:'\",.<>?/\\ \t\n"; 
+    //     int value = atoi(arg);
+
+    //     if (value >= 0 && value <= 3 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
+    //       fval = atof(arg); //convert to string
+
+    //       printf("[DEBUG] Parsed fval from arg: %f\n", fval);
+
+    //       res = set_analog_gain(fval);
+    //       printf("[DEBUG] Result of set_analog_gain: %d\n", res);
+
+    //       if (res) {
+    //           resplen = sprintf(response, "Error setting gain.");
+    //       } else {
+    //           resplen = sprintf(response, "%0.2f", fval);
+    //       }
+    //       printf("[DEBUG] Response: %s\n", response);
+    //       printf("[DEBUG] resplen: %d\n", resplen);
+    //     // } else {
+    //     //     printf("err");
+    //     //     return ERR;
+    //     }
+    //   };
+    //   if(argc == 0){
+    //     printf("Number of arguments: %d\n", argc);
+    //     res = get_analog_gain(&fval);
+    //     printf("[DEBUG] Result of get_analog_gain: %d\n", res);
+    //     if (res) {
+    //         resplen = sprintf(response, "Error getting gain.");
+    //     } else {
+    //         resplen = sprintf(response, "%0.2f", fval);
+    //     };
+    //   };
+    // };
 
       // set/get analog gain
         if (strcmp(cmd,"analog_gain")==0){
-	if(argc == 1){
-	  fval = atof(arg);
-	    res = set_analog_gain(fval);
-	    if(res){
-	      resplen = sprintf(response,"Error setting analog gain.");
-	    } else { 
-	      resplen = sprintf(response,"%0.2f",val);
-	    };
-	  } else {
-	    res = get_analog_gain(&val);
-	    if (res){
-	      resplen = sprintf(response,"Error getting analog gain.");
-	    } else {
-	      resplen = sprintf(response,"%0.2f",val);
-	    };
-	}; //argument list
-      };
+          if(argc == 1){
+            char ints[] = "0123";
+            const char *nonDigits = "456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:'\",.<>?/\\ \t\n"; 
+            int value = atoi(arg);
+            if (value >= 0 && value <= 3 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
+              fval = atof(arg);
+                res = set_analog_gain(fval);
+                if(res){
+                  resplen = sprintf(response,"Error setting analog gain.");
+                } else { 
+                  resplen = sprintf(response,"%0.2f",val);
+                }
+            }
+          }
+          if(argc == 0){
+              res = get_analog_gain(&val);
+              if (res){
+                resplen = sprintf(response,"Error getting analog gain.");
+              } else {
+                resplen = sprintf(response,"%0.2f",val);
+              };
+          }; //argument list
+        
+        };
 
 //new
   //       if (strcmp(cmd,"rois")==0){
