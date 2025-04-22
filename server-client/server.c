@@ -254,35 +254,6 @@ int listen_server(){
       };
 
       };
-  
-      // // set/get temp
-      //   if (strcmp(cmd,"temp")==0){
-      //     if(argc == 1){
-      //       printf(arg);
-      //       char ints[] = "0123456789";
-      //       const char *nonDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:'\",.<>?/\\ \t\n"; 
-      //       // int value = atoi(arg);
-      //       if (arg >= -70 && arg <= 90 && strpbrk(arg, ints)!=NULL && strpbrk(arg, nonDigits)==NULL){
-      //         fval = atof(arg);
-      //         printf("[DEBUG] Parsed fval from arg: %f\n", fval);
-
-      //         res = set_temp(fval);
-      //         printf("[DEBUG] Result of set_temp: %d\n", res);
-
-      //         if(res){
-      //           resplen = sprintf(response,"Error setting temp.");
-      //         } else { 
-      //           resplen = sprintf(response,"%0.2f",val);
-      //         };
-      //       } else {
-      //         res = get_temp(&fval);
-      //         if (res){
-      //           resplen = sprintf(response,"Error getting temp.");
-      //         } else {
-      //           resplen = sprintf(response,"%0.2f",fval);
-      //         };
-      //     }; //argument list
-      // };
 
     // //set/get analog gain
     // if (strcmp(cmd, "gain") == 0) {
