@@ -11,7 +11,7 @@ This script defines camera commands
 #include <sys/stat.h>  // For stat and mkdir
 #include <cerrno>      // For errno
 #include <cstring>     // For strerror
-#include <cstdio>
+
 
 #define NO_TIMEOUT  -1
 #define TIME_BETWEEN_READOUTS 10 //ms
@@ -23,50 +23,9 @@ This script defines camera commands
 #define ERR -1
 
 PicamPtcArgs params;
-
-typedef struct    /* structure containing mem file structure */ 
-{
-    char **memaddrptr;   /* Pointer to memory address pointer; */
-                         /* This may or may not point to memaddr. */
-    char *memaddr;       /* Pointer to starting memory address; may */
-                         /* not always be used, so use *memaddrptr instead */
-    size_t *memsizeptr;  /* Pointer to the size of the memory allocation. */
-                         /* This may or may not point to memsize. */
-    size_t memsize;      /* Size of the memory allocation; this may not */
-                         /* always be used, so use *memsizeptr instead. */
-    size_t deltasize;    /* Suggested increment for reallocating memory */
-    void *(*mem_realloc)(void *p, size_t newsize);  /* realloc function */
-    LONGLONG currentpos;   /* current file position, relative to start */
-    LONGLONG fitsfilesize; /* size of the FITS file (always <= *memsizeptr) */
-    FILE *fileptr;      /* pointer to compressed output disk file */
-} memdriver;
-static memdriver memTable[NMAXFILES];  /* allocate mem file handle tables */
-
 // const PicamRoisConstraint* constraints;
 // int num_image;
 
-
-//converting raw file output from image() into a fits file, using cfitsio
-//uses mem_rawfile_open, defined in drvrmem.c
-int generate_fits(const char *filename, int rwmode, int &handle)
-{
-    std::cout << "Convert raw file to fits";
-    int status;
-    // char filename[] = "/bin/exposure_file.raw[b512,512]"
-    status = mem_rawfile_open(const_cast<char *>(filename), rwmode, &handle);
-
-    if (status == 0) {
-        printf("Raw file successfully opened and loaded into memory.\n");
-        // Perform further operations on the FITS data in memory using the handle
-    } else {
-        printf("Failed to open the raw file. Error code: %d\n", status);
-    }
-
-    // Clean up: Free the memory associated with the handle
-    mem_close_free(handle);
-
-    return 0;
-}
 
 void PrintData( pibyte* buf, piint numframes, piint framelength )
 {
@@ -523,254 +482,75 @@ int bias(const char *bias_filename)
 }
 
 
-int mem_rawfile_open(char *filename, int rwmode, int *hdl)
-/*
-  This routine creates an empty memory buffer, writes a minimal
-  image header, then copies the image data from the raw file into
-  memory.  It will byteswap the pixel values if the raw array
-  is in little endian byte order.
-*/
+//converting raw file output from image() into a fits file, using cfitsio
+
+#define WIDTH 512
+#define HEIGHT 512
+
+int generate_fits(const char *filename)
 {
-    FILE *diskfile;
-    fitsfile *fptr;
-    short *sptr;
-    int status, endian, datatype, bytePerPix, naxis;
-    long dim[5] = {1,1,1,1,1}, ii, nvals, offset = 0;
-    size_t filesize = 0, datasize;
-    char rootfile[FLEN_FILENAME], *cptr = 0, *cptr2 = 0;
-    void *ptr;
+     fitsfile *fptr;
+    int status = 0;
+    long naxes[2] = {WIDTH, HEIGHT};
+    unsigned short *image = NULL;
+    FILE *fp = NULL;
 
-    if (rwmode != READONLY)
-    {
-        ffpmsg(
-  "cannot open raw binary file with WRITE access (mem_rawfile_open)");
-        ffpmsg(filename);
-        return(READONLY_FILE);
+    // Allocate memory
+    image = (unsigned short *)malloc(WIDTH * HEIGHT * sizeof(unsigned short));
+    if (image == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        return 1;
     }
 
-    cptr = strchr(filename, '[');   /* search for opening bracket [ */
-
-    if (!cptr)
-    {
-        ffpmsg("binary file name missing '[' character (mem_rawfile_open)");
-        ffpmsg(filename);
-        return(URL_PARSE_ERROR);
+    // Open raw file
+    fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "Could not open input file.\n");
+        free(image);
+        return 1;
     }
 
-    *rootfile = '\0';
-    strncat(rootfile, filename, cptr - filename);  /* store the rootname */
-
-    cptr++;
-
-    while (*cptr == ' ')
-       cptr++;    /* skip leading blanks */
-
-    /* Get the Data Type of the Image */
-
-    if (*cptr == 'b' || *cptr == 'B')
-    {
-      datatype = BYTE_IMG;
-      bytePerPix = 1;
-    }
-    else if (*cptr == 'i' || *cptr == 'I')
-    {
-      datatype = SHORT_IMG;
-      bytePerPix = 2;
-    }
-    else if (*cptr == 'u' || *cptr == 'U')
-    {
-      datatype = USHORT_IMG;
-      bytePerPix = 2;
-
-    }
-    else if (*cptr == 'j' || *cptr == 'J')
-    {
-      datatype = LONG_IMG;
-      bytePerPix = 4;
-    }  
-    else if (*cptr == 'r' || *cptr == 'R' || *cptr == 'f' || *cptr == 'F')
-    {
-      datatype = FLOAT_IMG;
-      bytePerPix = 4;
-    }    
-    else if (*cptr == 'd' || *cptr == 'D')
-    {
-      datatype = DOUBLE_IMG;
-      bytePerPix = 8;
-    }
-    else
-    {
-        ffpmsg("error in raw binary file datatype (mem_rawfile_open)");
-        ffpmsg(filename);
-        return(URL_PARSE_ERROR);
+    // Read the image
+    size_t nread = fread(image, sizeof(unsigned short), WIDTH * HEIGHT, fp);
+    fclose(fp);
+    if (nread != WIDTH * HEIGHT) {
+        fprintf(stderr, "Incomplete read.\n");
+        free(image);
+        return 1;
     }
 
-    cptr++;
-
-    /* get Endian: Big or Little; default is same as the local machine */
-    
-    if (*cptr == 'b' || *cptr == 'B')
-    {
-        endian = 0;
-        cptr++;
-    }
-    else if (*cptr == 'l' || *cptr == 'L')
-    {
-        endian = 1;
-        cptr++;
-    }
-    else
-        endian = BYTESWAPPED; /* byteswapped machines are little endian */
-
-    /* read each dimension (up to 5) */
-
-    naxis = 1;
-    dim[0] = strtol(cptr, &cptr2, 10);
-    
-    if (cptr2 && *cptr2 == ',')
-    {
-      naxis = 2;
-      dim[1] = strtol(cptr2+1, &cptr, 10);
-
-      if (cptr && *cptr == ',')
-      {
-        naxis = 3;
-        dim[2] = strtol(cptr+1, &cptr2, 10);
-
-        if (cptr2 && *cptr2 == ',')
-        {
-          naxis = 4;
-          dim[3] = strtol(cptr2+1, &cptr, 10);
-
-          if (cptr && *cptr == ',')
-            naxis = 5;
-            dim[4] = strtol(cptr+1, &cptr2, 10);
-        }
-      }
+    // Create the FITS file (overwrite if exists)
+    remove("output.fits");
+    if (fits_create_file(&fptr, "!output.fits", &status)) {
+        fits_report_error(stderr, status);
+        free(image);
+        return 1;
     }
 
-    cptr = maxvalue(cptr, cptr2);
-
-    if (*cptr == ':')   /* read starting offset value */
-        offset = strtol(cptr+1, 0, 10);
-
-    nvals = dim[0] * dim[1] * dim[2] * dim[3] * dim[4];
-    datasize = nvals * bytePerPix;
-    filesize = nvals * bytePerPix + 2880;
-    filesize = ((filesize - 1) / 2880 + 1) * 2880; 
-
-    /* open the raw binary disk file */
-    status = file_openfile(rootfile, READONLY, &diskfile);
-    if (status)
-    {
-        ffpmsg("failed to open raw  binary file (mem_rawfile_open)");
-        ffpmsg(rootfile);
-        return(status);
+    // Create image HDU
+    if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
+        fits_report_error(stderr, status);
+        return 1;
     }
 
-    /* create a memory file with corrct size for the FITS converted raw file */
-    status = mem_createmem(filesize, hdl);
-    if (status)
-    {
-        ffpmsg("failed to create memory file (mem_rawfile_open)");
-        fclose(diskfile);
-        return(status);
+    // Write image data
+    long fpixel[2] = {1, 1};
+    if (fits_write_pix(fptr, TUSHORT, fpixel, WIDTH * HEIGHT, image, &status)) {
+        fits_report_error(stderr, status);
+        return 1;
     }
 
-    /* open this piece of memory as a new FITS file */
-    ffimem(&fptr, (void **) memTable[*hdl].memaddrptr, &filesize, 0, 0, &status);
-
-    /* write the required header keywords */
-    ffcrim(fptr, datatype, naxis, dim, &status);
-
-    /* close the FITS file, but keep the memory allocated */
-    ffclos(fptr, &status);
-
-    if (status > 0)
-    {
-        ffpmsg("failed to write basic image header (mem_rawfile_open)");
-        fclose(diskfile);
-        mem_close_free(*hdl);   /* free up the memory */
-        return(status);
+    // Close file
+    if (fits_close_file(fptr, &status)) {
+        fits_report_error(stderr, status);
+        return 1;
     }
 
-    if (offset > 0)
-       fseek(diskfile, offset, 0);   /* offset to start of the data */
-
-    /* read the raw data into memory */
-    ptr = *memTable[*hdl].memaddrptr + 2880;
-
-    if (fread((char *) ptr, 1, datasize, diskfile) != datasize)
-      status = READ_ERROR;
-
-    fclose(diskfile);  /* close the raw binary disk file */
-
-    if (status)
-    {
-        mem_close_free(*hdl);   /* free up the memory */
-        ffpmsg("failed to copy raw file data into memory (mem_rawfile_open)");
-        return(status);
-    }
-
-    if (datatype == USHORT_IMG)  /* have to subtract 32768 from each unsigned */
-    {                            /* value to conform to FITS convention. More */
-                                 /* efficient way to do this is to just flip  */
-                                 /* the most significant bit.                 */
-
-      sptr = (short *) ptr;
-
-      if (endian == BYTESWAPPED)  /* working with native format */
-      {
-        for (ii = 0; ii < nvals; ii++, sptr++)
-        {
-          *sptr =  ( *sptr ) ^ 0x8000;
-        }
-      }
-      else  /* pixels are byteswapped WRT the native format */
-      {
-        for (ii = 0; ii < nvals; ii++, sptr++)
-        {
-          *sptr =  ( *sptr ) ^ 0x80;
-        }
-      }
-    }
-
-    if (endian)  /* swap the bytes if array is in little endian byte order */
-    {
-      if (datatype == SHORT_IMG || datatype == USHORT_IMG)
-      {
-        ffswap2( (short *) ptr, nvals);
-      }
-      else if (datatype == LONG_IMG || datatype == FLOAT_IMG)
-      {
-        ffswap4( (INT32BIT *) ptr, nvals);
-      }
-
-      else if (datatype == DOUBLE_IMG)
-      {
-        ffswap8( (double *) ptr, nvals);
-      }
-    }
-
-    memTable[*hdl].currentpos = 0;           /* save starting position */
-    memTable[*hdl].fitsfilesize=filesize;    /* and initial file size  */
-
-    return(0);
+    free(image);
+    printf("Successfully created FITS file.\n");
+    return 0;
 }
-    
-    
 
-int mem_close_free(int handle)
-/*
-  close the file and free the memory.
-*/
-{
-    free( *(memTable[handle].memaddrptr) );
-
-    memTable[handle].memaddrptr = 0;
-    memTable[handle].memaddr = 0;
-    return(0);
-}
 
 // int main(){
 //     open_camera();
