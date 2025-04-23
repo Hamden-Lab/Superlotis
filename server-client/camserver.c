@@ -6,6 +6,9 @@
 #include "server.h" // socket server
 #include "camera.h" // camera processing commands
 
+#define OK                     0
+#define ERR                    -1
+
 int ROS;
 int volatile runon=1;
 
@@ -36,12 +39,12 @@ int main(int argc, char *argv[])
   
   if((err=open_server())){
     printf("Could not open server\n");
-    return -1;
+    return ERR;
   }; // open server
 
   if((err=open_camera())){
     printf("Could not open camera\n");
-    return -1;
+    return ERR;
   }; // open camera
   
   // listen server returns an integer.

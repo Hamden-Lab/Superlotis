@@ -12,6 +12,8 @@
 #include "camera.h"
 #include "server.h"
 #include "socketid.h"
+#include "fitsio.h"
+#include "fitsio2.h"
 
 #define OK 0
 #define ERR -1
@@ -27,8 +29,8 @@ const char helpstr[]=" \
 \nbias\
 \nstatus\
 \nburst\
-\ncommit_params\n";
-
+\ncommit_params\
+\ngenfits\n";
 
 void error(const char *msg)
 {
@@ -385,6 +387,14 @@ int listen_server(){
 	};
       };
 
+//  if (strcmp(cmd,"genfits")==0){
+// 	res = generate_fits("bias_file.raw");
+// 	if (res){
+// 	  resplen = sprintf(response," .");
+// 	} else {
+// 	  resplen = sprintf(response,"Exposure complete.");
+// 	};
+//       };
       
     // } else {
     //   // if the command is null, return the defaults

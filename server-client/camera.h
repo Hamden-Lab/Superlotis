@@ -3,8 +3,8 @@
 #include "picam.h"
 #include <string.h>  
 #include "fitsio.h"
-#include <cstdio>
-#include <iostream>
+// #include <cstdio>
+// #include <iostream>
 
 #define COMMAND_LINE_BUILD 1
 #define STRING_LENGTH 255
@@ -15,7 +15,7 @@
 #define EXP_TIME               5.0  
 #define ACQUIRE_TIMEOUT        15000 
 #define OK                     0
-#define ERR                    1
+#define ERR                    -1
 
 
 // structure for camera parameters
@@ -23,7 +23,7 @@ typedef struct PicamPtcArgs {
 //   PicamHandle camera;
   piint mode;
   piflt temp;
-  piint gainValue;
+  piint gain;
   piflt exposure_time;
   const char* filename;
   PicamAvailableData data;
@@ -45,12 +45,12 @@ int PrintError(PicamError error);
 int get_exposure_time(piflt *exposure_time);
 int get_shutter(piint *mode);
 int get_temp(piflt *temp);
-int get_analog_gain(piint *gainValue);
+int get_analog_gain(piint *gain);
 
 int set_exposure_time(piflt exposure_time);
 int set_shutter(piint mode);
 int set_temp(piflt temp);
-int set_analog_gain(piint gainValue);
+int set_analog_gain(piint gain);
 int status(piflt exposure_time, piint gainValue, piint mode, piflt temp);
 
 int open_camera();
@@ -62,6 +62,9 @@ int expose(const char *expose_filename);
 int dark(const char *dark_filename);
 int bias(const char *bias_filename);
 int burst(int i); //new 
+
+int generate_fits(char filename[], int rwmode, int &handle);
+
 // int add_header(char *fname);
 // int get_last_filename(char *fname);
 // int get_next_filename(char *fname);
