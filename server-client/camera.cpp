@@ -484,12 +484,14 @@ int bias(const char *bias_filename)
 
 //converting raw file output from image() into a fits file, using cfitsio
 
+
+
 #define WIDTH 512
 #define HEIGHT 512
 
 int generate_fits(const char *filename)
 {
-     fitsfile *fptr;
+    fitsfile *fptr;
     int status = 0;
     long naxes[2] = {WIDTH, HEIGHT};
     unsigned short *image = NULL;
@@ -497,13 +499,18 @@ int generate_fits(const char *filename)
 
     // Allocate memory
     image = (unsigned short *)malloc(WIDTH * HEIGHT * sizeof(unsigned short));
+    std::cout << "Allocate memory" << std::endl;
+
     if (image == NULL) {
         fprintf(stderr, "Memory allocation failed.\n");
         return 1;
     }
 
+    std::cout << "Allocate memory" << std::endl;
+
     // Open raw file
     fp = fopen(filename, "rb");
+    std::cout << "Attempting to open file: [" << filename << "]" << std::endl;
     if (fp == NULL) {
         fprintf(stderr, "Could not open input file.\n");
         free(image);
