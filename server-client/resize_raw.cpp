@@ -69,3 +69,4 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 }
+//compile: g++ -std=c++11 -o convert_raw_to_fits resize_raw.cpp
