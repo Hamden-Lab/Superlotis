@@ -122,6 +122,21 @@ int convert_raw_to_fits(const char *filename, const char *fits_filename) {
         fits_report_error(stderr, status);
     }
 
+    //update fits header start
+    float temperature = 22.5;   
+    float exptime = 1.25;       
+
+    if (fits_update_key(fptr, TFLOAT, "TEMPERAT", &temperature,
+                        "Temperature during exposure (C)", &status)) {
+        fits_report_error(stderr, status);
+    }
+
+    if (fits_update_key(fptr, TFLOAT, "EXPTIME", &exptime,
+                        "Exposure time (s)", &status)) {
+        fits_report_error(stderr, status);
+    }
+    //update fits header end
+
     // Close the FITS file
     if (fits_close_file(fptr, &status)) {
         fits_report_error(stderr, status);
@@ -138,7 +153,7 @@ int main() {
     // const char *raw_filename = "/opt/PrincetonInstruments/picam/samples/server-client/bin/exposure_file.raw";
     // const char *fits_filename = "!exposure_file_cpp.fits";  // '!' allows overwrite
 
-    int status = convert_raw_to_fits("/opt/PrincetonInstruments/picam/samples/server-client/bin/exposure_file.raw", "!exposure_file_cpp2.fits");
+    int status = convert_raw_to_fits("/opt/PrincetonInstruments/picam/samples/server-client/bin/exposure_file.raw", "!exposure_file_cpp3.fits");
     if (status == 0) {
         printf("FITS file created successfully.\n");
     } else {
