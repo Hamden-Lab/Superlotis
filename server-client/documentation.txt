@@ -25,6 +25,7 @@ dark
 notes: 
 shutter_mode: normal = 1, 2 = always_closed, 3 = always_opem
 analog_gain: 3 = high, 2 = medium, 2 = low
+running a cpp file on its own: g++ -std=c++11 -o [filename] resize_raw.cpp
 
 
 TODO: 
