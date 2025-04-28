@@ -3,15 +3,15 @@
 extern "C" {
     #include "fitsio.h"
 }
+#define WIDTH 2048
+#define HEIGHT 2048
 
 int convert_raw_to_fits() {
     const char *raw_filename = "/opt/PrincetonInstruments/picam/samples/server-client/bin/exposure_file.raw";
     const char *fits_filename = "!exposure_file_cpp.fits";  // '!' allows overwrite
 
-    long width = 1024;   // Set your actual image width
-    long height = 768;   // Set your actual image height
-    long naxes[2] = {width, height};
-    size_t npixels = width * height;
+    long naxes[2] = {WIDTH, HEIGHT};
+    size_t npixels = WIDTH * HEIGHT;
 
     fitsfile *fptr;      // FITS file pointer
     int status = 0;
@@ -49,7 +49,7 @@ int convert_raw_to_fits() {
     }
 
     // Define image type and dimensions
-    if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
+    if (fits_create_img(fptr, SHORT_IMG, 2, naxes, &status)) {
         fits_report_error(stderr, status);
         fits_close_file(fptr, &status);
         free(image);
@@ -79,3 +79,4 @@ int main() {
     }
     return status;
 }
+//g++ raw_to_fits.cpp -o raw_to_fits_cpp -lcfitsio
