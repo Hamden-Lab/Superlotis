@@ -6,6 +6,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <ctype.h>  // Include ctype.h for isdigit()
+#include <fstream>
+#include <vector>
+// #include <algorithm>
+// #include <cstring>
+// #include <cstdint>
+// #include <iomanip>
 
 // #include "picam.h"
 
@@ -387,14 +393,16 @@ int listen_server(){
 	};
       };
 
-//  if (strcmp(cmd,"genfits")==0){
-// 	res = generate_fits("bias_file.raw");
-// 	if (res){
-// 	  resplen = sprintf(response," .");
-// 	} else {
-// 	  resplen = sprintf(response,"Exposure complete.");
-// 	};
-//       };
+  // if (strcmp(cmd,"genfits")==0){
+  //   int handle = 1;
+  //   res = generate_fits("bin/exposure_file.raw", 1, &handle);
+
+  //   if (res){
+  //     resplen = sprintf(response," .");
+  //   } else {
+  //     resplen = sprintf(response,"Exposure complete.");
+  //   };
+  //       };
       
     // } else {
     //   // if the command is null, return the defaults

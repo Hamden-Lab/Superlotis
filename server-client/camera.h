@@ -16,7 +16,9 @@
 #define ACQUIRE_TIMEOUT        15000 
 #define OK                     0
 #define ERR                    -1
-
+#define ELEMENT_SIZE 2 //for dtype = uint16, this is a camera property
+#define WIDTH 2048
+#define HEIGHT 2048
 
 // structure for camera parameters
 typedef struct PicamPtcArgs {
@@ -33,6 +35,8 @@ typedef struct PicamPtcArgs {
   const pichar* string;
   FILE* pFile;
   PicamHandle camera;
+  // piint res_width; //resolution width: 2048
+  // piint res_height; //resolution width: 2048
 
 }PicamPtcArgs;
 
@@ -63,7 +67,11 @@ int dark(const char *dark_filename);
 int bias(const char *bias_filename);
 int burst(int i); //new 
 
-int generate_fits(char filename[], int rwmode, int &handle);
+//handling output from image()
+int resize_raw(const char* filename);
+
+// int save_as_fits(const std::string& output_file, const std::vector<uint16_t>& data, piint *width, piint *height);
+
 
 // int add_header(char *fname);
 // int get_last_filename(char *fname);
