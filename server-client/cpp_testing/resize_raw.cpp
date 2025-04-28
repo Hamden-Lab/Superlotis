@@ -69,4 +69,4 @@ int resize_raw(const char* filename) {
 
 
 
-//compile: g++ -std=c++11 -o convert_raw_to_fits resize_raw.cpp
+//compile: g++ -std=c++11 -o [filename] resize_raw.cpp
