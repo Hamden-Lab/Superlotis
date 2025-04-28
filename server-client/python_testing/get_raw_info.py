@@ -47,7 +47,7 @@ def plot_resized(data):
 
 
 # File path and parameters
-rawfile = '/opt/PrincetonInstruments/picam/samples/server-client-simple/bin/exposure_file.raw'
+rawfile = '/opt/PrincetonInstruments/picam/samples/server-client/bin/exposure_file.raw'
 dtype = np.uint16
 shape = (2048, 2048) 
 

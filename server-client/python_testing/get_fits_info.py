@@ -66,4 +66,4 @@ def fits_viewer(file_path):
     plt.show()
 
 # Run it
-fits_viewer('exposure_file.fits')
+fits_viewer('/opt/PrincetonInstruments/picam/samples/server-client/cpp_testing/exposure_file_cpp.fits')
