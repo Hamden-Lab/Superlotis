@@ -16,6 +16,10 @@ This script defines camera commands
 #include <iomanip>
 #include <string>
 #include <cstdlib>
+#include <cstdio>
+extern "C" {
+    #include "fitsio.h"
+}
 
 #define NO_TIMEOUT  -1
 #define TIME_BETWEEN_READOUTS 10 //ms
@@ -545,12 +549,78 @@ int resize_raw(const char* filename) {
     return 0;
 }
 
-//convert raw to fits
+int convert_raw_to_fits(const char *filename, const char *fits_filename) {
 
+    if (resize_raw(filename) == 0){
 
+    long naxes[2] = {WIDTH, HEIGHT};
+    size_t npixels = WIDTH * HEIGHT;
 
-//update fits header
+    fitsfile *fptr;      // FITS file pointer
+    int status = 0;
+    long fpixel = 1;
 
+    // Allocate memory for the image
+    unsigned short *image = (unsigned short *)malloc(npixels * sizeof(unsigned short));
+    if (!image) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        return 1;
+    }
+
+    // Open the raw binary file
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        perror("Error opening raw file");
+        free(image);
+        return 1;
+    }
+
+    // Read raw image data
+    if (fread(image, sizeof(unsigned short), npixels, fp) != npixels) {
+        fprintf(stderr, "Error reading raw data.\n");
+        fclose(fp);
+        free(image);
+        return 1;
+    }
+    fclose(fp);
+
+    // Create a new FITS file
+    if (fits_create_file(&fptr, fits_filename, &status)) {
+        fits_report_error(stderr, status);
+        free(image);
+        return status;
+    }
+
+    // Define image type and dimensions
+    if (fits_create_img(fptr, SHORT_IMG, 2, naxes, &status)) {
+        fits_report_error(stderr, status);
+        fits_close_file(fptr, &status);
+        free(image);
+        return status;
+    }
+
+    // Write the image data
+    if (fits_write_img(fptr, TUSHORT, fpixel, npixels, image, &status)) {
+        fits_report_error(stderr, status);
+    }
+
+    // Close the FITS file
+    if (fits_close_file(fptr, &status)) {
+        fits_report_error(stderr, status);
+    }
+
+    free(image);
+    return status;
+    }else{
+        return -1;
+    }
+}
+
+// int update_fits_header(const char *filename, const char *fits_filename){
+//     if(convert_raw_to_fits(filename, fits_filename)==0){
+        
+//     }
+// }
 
 
 

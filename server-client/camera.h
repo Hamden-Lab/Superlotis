@@ -28,6 +28,7 @@ typedef struct PicamPtcArgs {
   piint gain;
   piflt exposure_time;
   const char* filename;
+  const char* fits_filename;
   PicamAvailableData data;
   PicamAcquisitionErrorsMask errors;
   PicamCameraID id;
@@ -69,6 +70,8 @@ int burst(int i); //new
 
 //handling output from image()
 int resize_raw(const char* filename);
+int convert_raw_to_fits(const char *filename, const char *fits_filename);
+
 
 // int save_as_fits(const std::string& output_file, const std::vector<uint16_t>& data, piint *width, piint *height);
 
