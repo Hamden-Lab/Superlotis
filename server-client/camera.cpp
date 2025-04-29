@@ -85,7 +85,11 @@ int get_exposure_time(piflt *exposure_time)
 {
     printf("Getting current exposure time...\n");
     PicamError err;
+    // std::cout << "[DEBUG] getter - output from Picam_GetParameterFloatingPointValue" << err << std::endl;
+
     err = Picam_GetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, &params.exposure_time);
+    std::cout << "[DEBUG] getter - output from Picam_GetParameterFloatingPointValue" << err << std::endl;
+
     if (err != PicamError_None)
     {
         printf("Failed to get exposure time.\n");
@@ -94,18 +98,34 @@ int get_exposure_time(piflt *exposure_time)
     }
     else
     {
-        std::cout << "Exposure time is: " << *exposure_time << " ms " << std::endl;
-        // printf("Exposure time is: %.2f ms\n", *(double*)exposure_time);
+        // *exposure_time = params.exposure_time;
+        // update_param_status();  // Update the timestamp and validity
+        std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
+        std::cout << "[DEBUG] getter - exposure_time" << exposure_time << " ms " << std::endl;
+        std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+
         return OK;
+        // std::cout << "Exposure time is: " << *exposure_time << " ms " << std::endl;
+        // // printf("Exposure time is: %.2f ms\n", *(double*)exposure_time);
+        // return OK;
     }
+
 }
 
 
 int set_exposure_time(piflt exposure_time)
 {
-    // get_exposure_time(&exposure_time);
+    get_exposure_time(&exposure_time);
+    params.exposure_time = exposure_time;
+
     printf("Setting new exposure time...\n");
-    PicamError error = Picam_SetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, params.exposure_time);
+    std::cout << "[DEBUG] setter1 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+    std::cout << "[DEBUG] setter1 - exposure_time" << exposure_time << " ms " << std::endl;
+    std::cout << "[DEBUG] setter1 - exposure_time" << &exposure_time << " ms " << std::endl;
+
+    PicamError error = Picam_SetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, exposure_time);
+    std::cout << "[DEBUG] setter - output from Picam_GetParameterFloatingPointValue" << error << std::endl;
+
     if (error != PicamError_None)
     {
         printf("Failed to set exposure time.\n");
@@ -114,7 +134,12 @@ int set_exposure_time(piflt exposure_time)
     }
     else
     {
+        // params.exposure_time = exposure_time;
+        // update_param_status();  // Update the timestamp and validity
         std::cout << "Exposure time set to: " << exposure_time << " ms " << std::endl;
+        std::cout << "[DEBUG] setter2 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+        std::cout << "[DEBUG] setter2 - exposure_time" << exposure_time << " ms " << std::endl;
+
         return OK;
     }
 }
@@ -203,7 +228,7 @@ int get_temp(piflt *temp)
     error = Picam_ReadParameterFloatingPointValue(
         params.camera,
         PicamParameter_SensorTemperatureReading,
-        &params.temp);
+        temp);
     PrintError(error);
     if (error == PicamError_None)
     {
@@ -355,11 +380,13 @@ int open_camera()
     Picam_DestroyString(params.string);
     Picam_GetParameterIntegerValue(params.camera, PicamParameter_ReadoutStride, &params.readoutstride);
 
-
-    set_temp(-10.0);
+    // set_temp(-10.0);
     set_analog_gain(2);
     set_shutter(2);
     return OK;
+
+    // params.exposure_time_valid = false;
+    // params.exposure_time_update = 0;
 
     // sprintf(params.image_path,"./");
     // sprintf(params.root_name,"image");
@@ -479,6 +506,10 @@ int image(const char *filename)
 int expose(const char* filename)
 {
     std::cout << "Take exposure" << std::endl;
+    set_exposure_time(100);
+    std::cout << "Exposure time:" << params.exposure_time << std::endl;
+    // std::cout << "Exposure time:" << &params.exposure_time << std::endl;
+
     commit_params();
     set_shutter(1);
 
@@ -546,6 +577,7 @@ int resize_raw(const char* filename) {
 }
 
 int raw_to_fits(const char *filename) {
+// piflt exposure_time;
 if (resize_raw(filename) == 0){
     long naxes[2] = {WIDTH, HEIGHT};
     size_t npixels = WIDTH * HEIGHT;
@@ -637,6 +669,16 @@ if (resize_raw(filename) == 0){
         fits_report_error(stderr, status);
     }
 
+    // if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", exposure_time,
+    //                 "Exposure time (ms)", &status)) {
+    //     fits_report_error(stderr, status);
+    // }
+
+    // std::cerr << "exposure_time" << exposure_time << std::endl;
+
+    std::cerr << "[DEBUG] raw2fits - &params.exposure_time" << &params.exposure_time << std::endl;
+    std::cerr << "[DEBUG] raw2fits - params.exposure_time" << params.exposure_time << std::endl;
+
     if (fits_update_key(params.fptr, TFLOAT, "GAIN", &params.gain,
                     "ADC analog gain", &status)) {
         fits_report_error(stderr, status);
@@ -669,6 +711,17 @@ if (resize_raw(filename) == 0){
         return -1;
     }
 }
+
+// bool is_param_valid(){
+//     time_t current_time = time(NULL);
+//     return params.exposure_time_valid && 
+//            (difftime(current_time, params.exposure_time_update) < PARAM_MAX_AGE_SECONDS);
+// }
+
+// void update_param_status() {
+//     params.exposure_time_update = time(NULL);
+//     params.exposure_time_valid = true;
+// }
 
 //orgin: FITS file originator
 //object: //NAME OF OBJECT OBSERVED
