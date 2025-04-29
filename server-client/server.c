@@ -239,7 +239,7 @@ int listen_server(){
           printf("[DEBUG] Result of set_temp: %d\n", res);
 
           if (res) {
-              resplen = sprintf(response, "Error setting exposure time.");
+              resplen = sprintf(response, "Error setting temp.");
           } else {
               resplen = sprintf(response, "%0.2f", fval);
           }
@@ -254,6 +254,8 @@ int listen_server(){
         printf("Number of arguments: %d\n", argc);
         res = get_temp(&fval);
         printf("[DEBUG] Result of get_temp: %d\n", res);
+        printf("[DEBUG] Result of get_temp pointer: %d\n", fval);
+
         if (res) {
             resplen = sprintf(response, "Error getting temp.");
         } else {
@@ -367,7 +369,8 @@ int listen_server(){
     };
 //end new
      if (strcmp(cmd,"expose")==0){
-	res = expose("exposure_file.raw");
+	// res = expose("exposure_file.raw");
+  res = expose("exposure_file");
 	if (res){
 	  resplen = sprintf(response,"Exposure error.");
 	} else {

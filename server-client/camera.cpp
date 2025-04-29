@@ -578,22 +578,30 @@ if (resize_raw(filename) == 0){
     }
     fclose(fp);
 
-    // Create a new FITS file
-    char fits_filename[256]; // Or whatever max path length you want
-    /////convert raw_filename -> fits_filename
-    //searches for "."
-    const char* ext = strrchr(filename, '.');
+    char fits_filename[256]; // Final output filename
+    char filename_with_bang[256]; // Temp buffer to ensure filename starts with '!'
+
+    // Add '!' at the beginning if not already there
+    if (filename[0] != '!') {
+        snprintf(filename_with_bang, sizeof(filename_with_bang), "!%s", filename);
+    } else {
+        strncpy(filename_with_bang, filename, sizeof(filename_with_bang));
+        filename_with_bang[sizeof(filename_with_bang) - 1] = '\0'; // Ensure null termination
+    }
+
+    // Convert filename_with_bang -> fits_filename
+    const char* ext = strrchr(filename_with_bang, '.');
     if (ext) {
-        size_t basename_len = ext - filename;
+        size_t basename_len = ext - filename_with_bang;
         if (basename_len >= sizeof(fits_filename) - 6) { // 5 for ".fits" + 1 null
             std::cerr << "Filename too long." << std::endl;
             return -1;
         }
-        strncpy(fits_filename, filename, basename_len);
+        strncpy(fits_filename, filename_with_bang, basename_len);
         fits_filename[basename_len] = '\0';
         strcat(fits_filename, ".fits");
     } else {
-        snprintf(fits_filename, sizeof(fits_filename), "%s.fits", filename);
+        snprintf(fits_filename, sizeof(fits_filename), "%s.fits", filename_with_bang);
     }
 
 
