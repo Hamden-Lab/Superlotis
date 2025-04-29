@@ -604,7 +604,6 @@ if (resize_raw(filename) == 0){
         snprintf(fits_filename, sizeof(fits_filename), "%s.fits", filename_with_bang);
     }
 
-
     // char fits_path[260];
     // snprintf(fits_path, sizeof(fits_path), "!%s", fits_filename); 
 
@@ -638,9 +637,24 @@ if (resize_raw(filename) == 0){
         fits_report_error(stderr, status);
     }
 
-
     if (fits_update_key(params.fptr, TFLOAT, "GAIN", &params.gain,
                     "ADC analog gain", &status)) {
+        fits_report_error(stderr, status);
+    }
+
+    // // Add DATE keyword (file creation time in UTC)
+    // if (fits_write_date(params.fptr, &status)) {
+    //     fits_report_error(stderr, status);
+    // }
+
+    // Add DATE-OBS keyword (observation date/time in ISO 8601 format)
+    char datetime_obs[30];
+    time_t now = time(NULL);
+    struct tm *utc_time = gmtime(&now);
+    strftime(datetime_obs, sizeof(datetime_obs), "%Y-%m-%dT%H:%M:%S", utc_time);
+
+    if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
+                        "Observation date and time (UTC)", &status)) {
         fits_report_error(stderr, status);
     }
 
