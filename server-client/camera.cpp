@@ -736,18 +736,6 @@ if (resize_raw(filename) == 0){
 //rdnoise (hard coded in?)
 
 
-// int update_fits_header(const char *filename, const char *fits_filename){
-//     if (convert_raw_to_fits(filename, fits_filename) == 0){
-//         int status = 0;
-//         if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", &params.temp,
-//                         "Temperature during exposure (C)", &status)) {
-//         fits_report_error(stderr, status);
-//     } return 0;
-//     } else{
-//         return -1;
-//     }
-// }
-
 
 
 
