@@ -88,7 +88,7 @@ int get_exposure_time(piflt *exposure_time)
     // std::cout << "[DEBUG] getter - output from Picam_GetParameterFloatingPointValue" << err << std::endl;
 
     err = Picam_GetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, &params.exposure_time);
-    std::cout << "[DEBUG] getter - output from Picam_GetParameterFloatingPointValue" << err << std::endl;
+    // std::cout << "[DEBUG] getter - output from Picam_GetParameterFloatingPointValue" << err << std::endl;
 
     if (err != PicamError_None)
     {
@@ -101,7 +101,7 @@ int get_exposure_time(piflt *exposure_time)
         // *exposure_time = params.exposure_time;
         // update_param_status();  // Update the timestamp and validity
         std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
-        std::cout << "[DEBUG] getter - exposure_time" << exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] getter - exposure_time" << exposure_time << " ms " << std::endl;
         std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
 
         return OK;
@@ -121,10 +121,10 @@ int set_exposure_time(piflt exposure_time)
     printf("Setting new exposure time...\n");
     std::cout << "[DEBUG] setter1 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
     std::cout << "[DEBUG] setter1 - exposure_time" << exposure_time << " ms " << std::endl;
-    std::cout << "[DEBUG] setter1 - exposure_time" << &exposure_time << " ms " << std::endl;
+    // std::cout << "[DEBUG] setter1 - exposure_time" << &exposure_time << " ms " << std::endl;
 
     PicamError error = Picam_SetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, exposure_time);
-    std::cout << "[DEBUG] setter - output from Picam_GetParameterFloatingPointValue" << error << std::endl;
+    // std::cout << "[DEBUG] setter - output from Picam_GetParameterFloatingPointValue" << error << std::endl;
 
     if (error != PicamError_None)
     {
@@ -136,9 +136,9 @@ int set_exposure_time(piflt exposure_time)
     {
         // params.exposure_time = exposure_time;
         // update_param_status();  // Update the timestamp and validity
-        std::cout << "Exposure time set to: " << exposure_time << " ms " << std::endl;
-        std::cout << "[DEBUG] setter2 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
-        std::cout << "[DEBUG] setter2 - exposure_time" << exposure_time << " ms " << std::endl;
+        // std::cout << "Exposure time set to: " << exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] setter2 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] setter2 - exposure_time" << exposure_time << " ms " << std::endl;
 
         return OK;
     }
@@ -478,6 +478,10 @@ int bias(const char *bias_filename)
 
 int image(const char *filename)
 {
+    std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
+    // set_exposure_time(6000);
+    // std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
+
     PicamError error = Picam_Acquire(params.camera, 2, 6000, &params.data, &params.errors); //changed 6000ms to 10000ms to params.exptime
    if (error == PicamError_None)
     {
@@ -506,7 +510,7 @@ int image(const char *filename)
 int expose(const char* filename)
 {
     std::cout << "Take exposure" << std::endl;
-    set_exposure_time(100);
+    // set_exposure_time(1000);
     std::cout << "Exposure time:" << params.exposure_time << std::endl;
     // std::cout << "Exposure time:" << &params.exposure_time << std::endl;
 
@@ -657,8 +661,8 @@ if (resize_raw(filename) == 0){
     if (fits_write_img(params.fptr, TUSHORT, fpixel, npixels, image, &status)) {
         fits_report_error(stderr, status);
     }
-    
-    //update fits header
+
+    //update header
     if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", &params.temp,
                     "Temperature during exposure (C)", &status)) {
         fits_report_error(stderr, status);
@@ -669,27 +673,36 @@ if (resize_raw(filename) == 0){
         fits_report_error(stderr, status);
     }
 
-    // if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", exposure_time,
-    //                 "Exposure time (ms)", &status)) {
-    //     fits_report_error(stderr, status);
-    // }
 
-    // std::cerr << "exposure_time" << exposure_time << std::endl;
-
-    std::cerr << "[DEBUG] raw2fits - &params.exposure_time" << &params.exposure_time << std::endl;
-    std::cerr << "[DEBUG] raw2fits - params.exposure_time" << params.exposure_time << std::endl;
-
-    if (fits_update_key(params.fptr, TFLOAT, "GAIN", &params.gain,
+    if (fits_update_key(params.fptr, TINT, "GAIN", &params.gain, //TFLOAT = 4.203895E-45 ?
                     "ADC analog gain", &status)) {
         fits_report_error(stderr, status);
     }
 
-    // // Add DATE keyword (file creation time in UTC)
-    // if (fits_write_date(params.fptr, &status)) {
-    //     fits_report_error(stderr, status);
-    // }
+    //read out header values
+    char comment[FLEN_COMMENT];
+    float read_temp = 0.0;
+    if (fits_read_key(params.fptr, TFLOAT, "TEMPERAT", &read_temp, comment, &status)) {
+        fits_report_error(stderr, status);
+    } else {
+        std::cerr << "[CONFIRM] TEMPERAT from header: " << read_temp << " deg C" << std::endl;
+    }
 
-    // Add DATE-OBS keyword (observation date/time in ISO 8601 format)
+    float read_exptime = 0.0;
+    if (fits_read_key(params.fptr, TFLOAT, "EXPTIME", &read_exptime, comment, &status)) {
+        fits_report_error(stderr, status);
+    } else {
+        std::cerr << "[CONFIRM] EXPTIME from header: " << read_exptime << " ms" << std::endl;
+    }
+
+    int read_gain = 0.0;
+    if (fits_read_key(params.fptr, TINT, "GAIN", &read_gain, comment, &status)) {
+        fits_report_error(stderr, status);
+    } else {
+        std::cerr << "[CONFIRM] GAIN from header: " << read_gain << std::endl;
+    }
+
+
     char datetime_obs[30];
     time_t now = time(NULL);
     struct tm *utc_time = gmtime(&now);
@@ -698,8 +711,7 @@ if (resize_raw(filename) == 0){
     if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
                         "Observation date and time (UTC)", &status)) {
         fits_report_error(stderr, status);
-    }
-
+    }    
     // Close the FITS file
     if (fits_close_file(params.fptr, &status)) {
         fits_report_error(stderr, status);
@@ -711,6 +723,42 @@ if (resize_raw(filename) == 0){
         return -1;
     }
 }
+
+//TODO: add func
+
+
+
+// int update_header(piflt *temp, piflt *exposure_time, piint *gain){
+// int update_header(piflt *exposure_time){
+//     int status = 0;
+//     if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", &params.temp,
+//                     "Temperature during exposure (C)", &status)) {
+//         fits_report_error(stderr, status);
+//     }
+
+//     if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", &exposure_time,
+//                     "Exposure time (ms)", &status)) {
+//         fits_report_error(stderr, status);
+//     }
+
+//     std::cerr << "exposure_time" << *exposure_time << std::endl;
+
+//     if (fits_update_key(params.fptr, TINT, "GAIN", &params.gain, //TFLOAT = 4.203895E-45 ?
+//                     "ADC analog gain", &status)) {
+//         fits_report_error(stderr, status);
+//     }
+
+//     char datetime_obs[30];
+//     time_t now = time(NULL);
+//     struct tm *utc_time = gmtime(&now);
+//     strftime(datetime_obs, sizeof(datetime_obs), "%Y-%m-%dT%H:%M:%S", utc_time);
+
+//     if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
+//                         "Observation date and time (UTC)", &status)) {
+//         fits_report_error(stderr, status);
+//     }
+//     return status;
+// }
 
 // bool is_param_valid(){
 //     time_t current_time = time(NULL);
