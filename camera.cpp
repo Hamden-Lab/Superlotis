@@ -24,7 +24,7 @@ extern "C" {
 #define NO_TIMEOUT  -1
 #define TIME_BETWEEN_READOUTS 10 //ms
 #define NUM_EXPOSURES  2
-#define DARK_EXP_TIME 5.0 // Default exposure time in milliseconds
+#define EXP_TIME 6000 // Default exposure time in milliseconds
 #define ACQUIRE_TIMEOUT 15000  // Fifteen-second timeout
 #define OK 0
 #define ERR -1
@@ -101,11 +101,11 @@ int get_exposure_time(piflt *exposure_time)
     {
         // *exposure_time = params.exposure_time;
         // update_param_status();  // Update the timestamp and validity
-        std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
-        std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
         params.exposure_time = *exposure_time;
-        std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
-        std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
+        // std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
 
         return OK;
         // std::cout << "Exposure time is: " << *exposure_time << " ms " << std::endl;
@@ -123,8 +123,8 @@ int set_exposure_time(piflt exposure_time)
     params.exposure_time = exposure_time;
 
     printf("Setting new exposure time...\n");
-    std::cout << "[DEBUG] setter1 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
-    std::cout << "[DEBUG] setter1 - exposure_time" << exposure_time << " ms " << std::endl;
+    // std::cout << "[DEBUG] setter1 - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+    // std::cout << "[DEBUG] setter1 - exposure_time" << exposure_time << " ms " << std::endl;
     // std::cout << "[DEBUG] setter1 - exposure_time" << &exposure_time << " ms " << std::endl;
 
     PicamError error = Picam_SetParameterFloatingPointValue(params.camera, PicamParameter_ExposureTime, exposure_time);
@@ -233,15 +233,19 @@ int get_temp(piflt *temp)
         params.camera,
         PicamParameter_SensorTemperatureReading,
         temp);
+    
     PrintError(error);
-    if (error == PicamError_None)
+    if (error != PicamError_None)
     {
-        std::cout << "Current temperature is " << *temp << " degrees C" << std::endl;
-        return OK;
+        return ERR;
     }
     else
     {
-        return ERR;
+        params.temp = *temp;
+        std::cout << "*temp " << *temp << " degrees C" << std::endl;
+        std::cout << "params.temp " << params.temp << " degrees C" << std::endl;
+
+        return OK;
     }
 }
 
@@ -387,6 +391,7 @@ int open_camera()
     //initial values
     // params.exposure_time = 6000;
     // set_exposure_time(10000);
+    set_temp(-10);
     set_analog_gain(2);
     set_shutter(2);
     commit_params();
@@ -452,33 +457,33 @@ int burst(int i) {
 //end new
 
 
-int dark(const char *dark_filename)
+int dark(const char *filename)
 {
     std::cout << "Take dark" << std::endl;
-    commit_params();
-
     set_shutter(2); // Set shutter mode to closed
-    piflt exposure_time = DARK_EXP_TIME;
-
-    set_exposure_time(exposure_time);
     commit_params();
+    params.exposure_time = EXP_TIME;
+    set_exposure_time(params.exposure_time);
+    commit_params();
+    image(filename, &params.exposure_time);
+    raw_to_fits(filename);
 
-    image(dark_filename, &exposure_time);
 
     return OK;
 }
 
 
-int bias(const char *bias_filename)
+int bias(const char *filename)
 {
     std::cout << "Take bias" << std::endl;
-    commit_params();
+
     set_shutter(3); // Set shutter mode to open
-    params.exposure_time = 0; 
-
-    // set_exposure_time(0);
-
-    image(bias_filename, &params.exposure_time);
+    commit_params();
+    set_exposure_time(100);
+    std::cerr << "[DEBUG] params.exposure_time in bias(): " << params.exposure_time << std::endl;
+    commit_params();
+    image(filename, &params.exposure_time);
+    raw_to_fits(filename);
 
     return OK;
 }
@@ -529,7 +534,8 @@ int expose(const char* filename)
 
     set_shutter(1);
     commit_params();
-    set_exposure_time(6000);
+    params.exposure_time = EXP_TIME;
+    set_exposure_time(params.exposure_time );
     std::cerr << "[DEBUG] params.exposure_time in expose(): " << params.exposure_time << std::endl;
     commit_params();
     image(filename, &params.exposure_time);
@@ -678,7 +684,7 @@ if (resize_raw(filename) == 0){
     if (fits_write_img(params.fptr, TUSHORT, fpixel, npixels, image, &status)) {
         fits_report_error(stderr, status);
     }
-    std::cerr << "[DEBUG] params.exposure_time before update_header - in raw_to_fits(): " << params.exposure_time << std::endl;
+    // std::cerr << "[DEBUG] params.exposure_time before update_header - in raw_to_fits(): " << params.exposure_time << std::endl;
 
     update_header(&params.temp, &params.exposure_time, &params.gain);
  
@@ -704,7 +710,7 @@ int update_header(piflt *temp, piflt *exposure_time, piint *gain){
         fits_report_error(stderr, status);
     }
 
-    std::cerr << "[DEBUG] params.exposure_time before update_header - in update_header(): " << params.exposure_time << std::endl;
+    // std::cerr << "[DEBUG] params.exposure_time before update_header - in update_header(): " << params.exposure_time << std::endl;
     if (fits_update_key(params.fptr, TDOUBLE, "EXPTIME", exposure_time,
                     "Exposure time (ms)", &status)) {
         fits_report_error(stderr, status);
