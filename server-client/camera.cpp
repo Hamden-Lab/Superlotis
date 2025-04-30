@@ -510,9 +510,7 @@ int image(const char *filename)
 int expose(const char* filename)
 {
     std::cout << "Take exposure" << std::endl;
-    // set_exposure_time(1000);
-    std::cout << "Exposure time:" << params.exposure_time << std::endl;
-    // std::cout << "Exposure time:" << &params.exposure_time << std::endl;
+    set_exposure_time(1000);
 
     commit_params();
     set_shutter(1);
@@ -581,6 +579,8 @@ int resize_raw(const char* filename) {
 }
 
 int raw_to_fits(const char *filename) {
+// int raw_to_fits(const char *filename, piflt *temp, piflt *exposure_time, piint *gain) {
+
 // piflt exposure_time;
 if (resize_raw(filename) == 0){
     long naxes[2] = {WIDTH, HEIGHT};
@@ -662,22 +662,49 @@ if (resize_raw(filename) == 0){
         fits_report_error(stderr, status);
     }
 
+    update_header(&params.temp, &params.exposure_time, &params.gain);
+ 
+    // Close the FITS file
+    if (fits_close_file(params.fptr, &status)) {
+        fits_report_error(stderr, status);
+    }
+
+    free(image);
+    return status;
+    }else{
+        return -1;
+    }
+}
+
+
+int update_header(piflt *temp, piflt *exposure_time, piint *gain){
+// int update_header(){
+    int status = 0;
     //update header
-    if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", &params.temp,
+    if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", temp,
                     "Temperature during exposure (C)", &status)) {
         fits_report_error(stderr, status);
     }
 
-    if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", &params.exposure_time,
+    if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", exposure_time,
                     "Exposure time (ms)", &status)) {
         fits_report_error(stderr, status);
     }
 
-
-    if (fits_update_key(params.fptr, TINT, "GAIN", &params.gain, //TFLOAT = 4.203895E-45 ?
+    if (fits_update_key(params.fptr, TINT, "GAIN", gain, //TFLOAT = 4.203895E-45 ?
                     "ADC analog gain", &status)) {
         fits_report_error(stderr, status);
     }
+
+    char datetime_obs[30];
+    time_t now = time(NULL);
+    struct tm *utc_time = gmtime(&now);
+    strftime(datetime_obs, sizeof(datetime_obs), "%Y-%m-%dT%H:%M:%S", utc_time);
+
+    if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
+                        "Observation date and time (UTC)", &status)) {
+        fits_report_error(stderr, status);
+    }   
 
     //read out header values
     char comment[FLEN_COMMENT];
@@ -701,64 +728,8 @@ if (resize_raw(filename) == 0){
     } else {
         std::cerr << "[CONFIRM] GAIN from header: " << read_gain << std::endl;
     }
-
-
-    char datetime_obs[30];
-    time_t now = time(NULL);
-    struct tm *utc_time = gmtime(&now);
-    strftime(datetime_obs, sizeof(datetime_obs), "%Y-%m-%dT%H:%M:%S", utc_time);
-
-    if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
-                        "Observation date and time (UTC)", &status)) {
-        fits_report_error(stderr, status);
-    }    
-    // Close the FITS file
-    if (fits_close_file(params.fptr, &status)) {
-        fits_report_error(stderr, status);
-    }
-
-    free(image);
     return status;
-    }else{
-        return -1;
-    }
 }
-
-//TODO: add func
-
-
-
-// int update_header(piflt *temp, piflt *exposure_time, piint *gain){
-// int update_header(piflt *exposure_time){
-//     int status = 0;
-//     if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", &params.temp,
-//                     "Temperature during exposure (C)", &status)) {
-//         fits_report_error(stderr, status);
-//     }
-
-//     if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", &exposure_time,
-//                     "Exposure time (ms)", &status)) {
-//         fits_report_error(stderr, status);
-//     }
-
-//     std::cerr << "exposure_time" << *exposure_time << std::endl;
-
-//     if (fits_update_key(params.fptr, TINT, "GAIN", &params.gain, //TFLOAT = 4.203895E-45 ?
-//                     "ADC analog gain", &status)) {
-//         fits_report_error(stderr, status);
-//     }
-
-//     char datetime_obs[30];
-//     time_t now = time(NULL);
-//     struct tm *utc_time = gmtime(&now);
-//     strftime(datetime_obs, sizeof(datetime_obs), "%Y-%m-%dT%H:%M:%S", utc_time);
-
-//     if (fits_update_key(params.fptr, TSTRING, "DATE-OBS", datetime_obs,
-//                         "Observation date and time (UTC)", &status)) {
-//         fits_report_error(stderr, status);
-//     }
-//     return status;
-// }
 
 // bool is_param_valid(){
 //     time_t current_time = time(NULL);
