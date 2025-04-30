@@ -386,9 +386,10 @@ int open_camera()
 
     //initial values
     // params.exposure_time = 6000;
-    // set_exposure_time(6000);
+    // set_exposure_time(10000);
     set_analog_gain(2);
     set_shutter(2);
+    commit_params();
     return OK;
 
     // params.exposure_time_valid = false;
@@ -460,6 +461,7 @@ int dark(const char *dark_filename)
     piflt exposure_time = DARK_EXP_TIME;
 
     set_exposure_time(exposure_time);
+    commit_params();
 
     image(dark_filename, &exposure_time);
 
@@ -487,13 +489,16 @@ int image(const char *filename, piflt *exposure_time)
     //TODO: set exposure time outside of Picam_Acquire(), and then use that value in Picam_Acquire()
     set_exposure_time(*exposure_time);
     commit_params();
+    std::cerr << "[DEBUG] params.exposure_time: " << params.exposure_time << std::endl;
 
     std::cout << "[DEBUG] - image() static_cast<piint>(*exposure_time)" << static_cast<piint>(*exposure_time) << std::endl;
     // std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
     //reinterpret_cast<piint*>(&exposure_time))
     //params.exposure_time
 
-    PicamError error = Picam_Acquire(params.camera, 2, static_cast<piint>(*exposure_time), &params.data, &params.errors); //changed 6000ms to params.exptime
+    int timeout = (int)(params.exposure_time * NUM_EXPOSURES + 2000); 
+
+    PicamError error = Picam_Acquire(params.camera, NUM_EXPOSURES, timeout, &params.data, &params.errors); //changed 6000ms to params.exptime
    if (error == PicamError_None)
     {
         std::cout << "Successfully took frame" << std::endl;
@@ -524,8 +529,9 @@ int expose(const char* filename)
 
     set_shutter(1);
     commit_params();
-    params.exposure_time = 6000;
-
+    set_exposure_time(6000);
+    std::cerr << "[DEBUG] params.exposure_time in expose(): " << params.exposure_time << std::endl;
+    commit_params();
     image(filename, &params.exposure_time);
     raw_to_fits(filename);
     return OK;
@@ -672,6 +678,7 @@ if (resize_raw(filename) == 0){
     if (fits_write_img(params.fptr, TUSHORT, fpixel, npixels, image, &status)) {
         fits_report_error(stderr, status);
     }
+    std::cerr << "[DEBUG] params.exposure_time before update_header - in raw_to_fits(): " << params.exposure_time << std::endl;
 
     update_header(&params.temp, &params.exposure_time, &params.gain);
  
@@ -691,12 +698,14 @@ int update_header(piflt *temp, piflt *exposure_time, piint *gain){
 // int update_header(){
     int status = 0;
     //update header
-    if (fits_update_key(params.fptr, TFLOAT, "TEMPERAT", temp,
+
+    if (fits_update_key(params.fptr, TDOUBLE, "TEMPERAT", temp,
                     "Temperature during exposure (C)", &status)) {
         fits_report_error(stderr, status);
     }
 
-    if (fits_update_key(params.fptr, TFLOAT, "EXPTIME", exposure_time,
+    std::cerr << "[DEBUG] params.exposure_time before update_header - in update_header(): " << params.exposure_time << std::endl;
+    if (fits_update_key(params.fptr, TDOUBLE, "EXPTIME", exposure_time,
                     "Exposure time (ms)", &status)) {
         fits_report_error(stderr, status);
     }
