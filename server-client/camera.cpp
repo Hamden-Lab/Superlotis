@@ -33,6 +33,7 @@ extern "C" {
 #define HEIGHT 2048
 
 PicamPtcArgs params;
+
 // const PicamRoisConstraint* constraints;
 // int num_image;
 
@@ -101,7 +102,9 @@ int get_exposure_time(piflt *exposure_time)
         // *exposure_time = params.exposure_time;
         // update_param_status();  // Update the timestamp and validity
         std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
-        // std::cout << "[DEBUG] getter - exposure_time" << exposure_time << " ms " << std::endl;
+        std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
+        params.exposure_time = *exposure_time;
+        std::cout << "[DEBUG] getter - *exposure_time" << *exposure_time << " ms " << std::endl;
         std::cout << "[DEBUG] getter - params.exposure_time" << params.exposure_time << " ms " << std::endl;
 
         return OK;
@@ -116,6 +119,7 @@ int get_exposure_time(piflt *exposure_time)
 int set_exposure_time(piflt exposure_time)
 {
     get_exposure_time(&exposure_time);
+
     params.exposure_time = exposure_time;
 
     printf("Setting new exposure time...\n");
@@ -380,7 +384,9 @@ int open_camera()
     Picam_DestroyString(params.string);
     Picam_GetParameterIntegerValue(params.camera, PicamParameter_ReadoutStride, &params.readoutstride);
 
-    // set_temp(-10.0);
+    //initial values
+    // params.exposure_time = 6000;
+    // set_exposure_time(6000);
     set_analog_gain(2);
     set_shutter(2);
     return OK;
@@ -455,7 +461,7 @@ int dark(const char *dark_filename)
 
     set_exposure_time(exposure_time);
 
-    image(dark_filename);
+    image(dark_filename, &exposure_time);
 
     return OK;
 }
@@ -466,23 +472,28 @@ int bias(const char *bias_filename)
     std::cout << "Take bias" << std::endl;
     commit_params();
     set_shutter(3); // Set shutter mode to open
-    // piflt exposure_time = 0; 
+    params.exposure_time = 0; 
 
-    set_exposure_time(0);
+    // set_exposure_time(0);
 
-    image(bias_filename);
+    image(bias_filename, &params.exposure_time);
 
     return OK;
 }
 
 
-int image(const char *filename)
+int image(const char *filename, piflt *exposure_time)
 {
-    std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
-    // set_exposure_time(6000);
-    // std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
+    //TODO: set exposure time outside of Picam_Acquire(), and then use that value in Picam_Acquire()
+    set_exposure_time(*exposure_time);
+    commit_params();
 
-    PicamError error = Picam_Acquire(params.camera, 2, 6000, &params.data, &params.errors); //changed 6000ms to 10000ms to params.exptime
+    std::cout << "[DEBUG] - image() static_cast<piint>(*exposure_time)" << static_cast<piint>(*exposure_time) << std::endl;
+    // std::cout << "[DEBUG] - image() params.exposure_time" << params.exposure_time << std::endl;
+    //reinterpret_cast<piint*>(&exposure_time))
+    //params.exposure_time
+
+    PicamError error = Picam_Acquire(params.camera, 2, static_cast<piint>(*exposure_time), &params.data, &params.errors); //changed 6000ms to params.exptime
    if (error == PicamError_None)
     {
         std::cout << "Successfully took frame" << std::endl;
@@ -510,12 +521,12 @@ int image(const char *filename)
 int expose(const char* filename)
 {
     std::cout << "Take exposure" << std::endl;
-    set_exposure_time(1000);
 
-    commit_params();
     set_shutter(1);
+    commit_params();
+    params.exposure_time = 6000;
 
-    image(filename);
+    image(filename, &params.exposure_time);
     raw_to_fits(filename);
     return OK;
 
@@ -675,7 +686,6 @@ if (resize_raw(filename) == 0){
         return -1;
     }
 }
-
 
 int update_header(piflt *temp, piflt *exposure_time, piint *gain){
 // int update_header(){
