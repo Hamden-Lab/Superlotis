@@ -2,6 +2,7 @@ how to run this script:
 server:
 'cd /opt/PrincetonInstruments/picam/samples/server-client-simple/bin'
 'cd .. && make && cd bin && ./camserver_cit'
+[this is in server.sh]
 
 client commands from same computer:
 in a new terminal window: 
